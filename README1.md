@@ -21,9 +21,9 @@
 </p>
 
 <p align="center">
-  <a href="https://wxt.dev/guide/installation.html" target="_blank">Install</a>
+  <a href="" target="_blank">Install</a>
   &bull;
-  <a href="https://github.com/achuanya/EasyFill/blob/main/Update Log.md" target="_blank">Update Log</a>
+  <a href="https://github.com/achuanya/EasyFill/blob/main/UpdateLog.md" target="_blank">Update Log</a>
   &bull;
-  <a href="https://discord.gg/ZFsZqGery9" target="_blank">Bug Submission</a>
+  <a href="" target="_blank">Bug Submission</a>
 </p>
