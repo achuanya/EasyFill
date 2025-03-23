@@ -9,6 +9,7 @@ export default defineConfig({
     description: '简易填充，让每一次评论更自然，与你的博友互动无缝连接',
     icons: {
       '16': 'icon/16.png',
+      '32': 'icon/48.png',
       '48': 'icon/48.png',
       '128': 'icon/128.png'
     },
@@ -20,6 +21,7 @@ export default defineConfig({
     action: {
       default_icon: {
         '16': 'icon/16.png',
+        '32': 'icon/48.png',
         '48': 'icon/48.png',
         '128': 'icon/128.png'
       },
@@ -38,7 +40,6 @@ export default defineConfig({
       {
         resources: [
           'settings.html',
-          'fonts/*',
           'images/*'
         ],
         matches: ['<all_urls>']

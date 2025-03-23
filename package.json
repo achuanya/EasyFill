@@ -15,9 +15,18 @@
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.280",
-    "sass-embedded": "^1.86.0",
+    "@types/chrome": "^0.0.310",
     "typescript": "^5.6.3",
     "wxt": "^0.19.29"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^6.4.8",
+    "@mui/material": "^6.4.8",
+    "marked": "^15.0.7",
+    "md5": "^2.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

@@ -2,80 +2,13 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>填充小助手 设置</title>
-  <!-- 根据你存放图标的位置修改即可 -->
+  <title>简易填充 - 设置</title>
+  <!-- 图标和自定义CSS可自行添加 -->
   <link rel="icon" href="../../public/icon/48.png" sizes="48x48" type="image/png">
-  <!-- 引入本页面专用的样式 -->
-  <link rel="stylesheet" href="./style.css" />
-  <!-- 引入图标字体的CSS（public/fonts/iconfont.css） -->
-  <link rel="stylesheet" href="../../public/fonts/iconfont.css" />
 </head>
 <body>
-  <div class="my-extension-container">
-    <div class="dl-container">
-      <div class="dl-sidebar">
-        <div class="dl-logo"></div>
-        <ul class="dl-menu">
-          <li class="active">
-            <a href="#general-settings">
-              <span class="icon iconfont icon-shezhi"></span>
-              <span>我的信息</span>
-            </a>
-          </li>
-          <li>
-            <a href="#integration"><span class="icon iconfont icon-chanpinguanli"></span>
-              <span>推荐插件</span>
-            </a>
-          </li>
-          <li>
-            <a href="#about">
-              <span class="icon iconfont icon-guanyu"></span>
-              <span>关于作者</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-      <div class="dl-content">
-        <div id="general-settings" class="tab-content active">
-          <h2 class="heading">我的信息</h2>
-          <div class="settings-container">
-            <div class="settings-section">
-              <input type="text" id="name" name="name" placeholder="输入名字">
-            </div>
-            <div class="settings-section">
-              <input type="email" id="email" name="email" placeholder="输入邮箱">
-            </div>
-            <div class="settings-section">
-              <input type="url" id="url" name="url" placeholder="输入网站地址">
-            </div>
-            <button id="save" class="btn-save">保存</button>
-          </div>
-        </div>
-        <div id="integration" class="tab-content">
-          <h2 class="heading">推荐插件</h2>
-          <h3>RSS友联展示页</h3>
-          <a href="https://lhasa.icu/GrabLatestRSS.html">https://lhasa.icu/GrabLatestRSS.html</a>
-          <h3>填充助手(博客评论表单)</h3>
-          <a href="https://lhasa.icu/FormAutomationPlugin.html">https://lhasa.icu/FormAutomationPlugin.html</a>
-        </div>
-        <div id="about" class="tab-content">
-          <h2 class="heading">关于作者</h2>
-          博客：<a href="https://lhasa.icu" target="_blank">https://lhasa.icu</a><p></p>
-          atom订阅：<a href="https://lhasa.icu/atom.xml" target="_blank">https://lhasa.icu/atom.xml</a><p></p>
-          rss订阅：<a href="https://lhasa.icu/rss.xml" target="_blank">https://lhasa.icu/rss.xml</a><p></p>
-          <h2 class="heading">赞赏博友</h2>
-          <!-- 引用 public/images/Appreciation-code.jpg -->
-          <img
-            src="../../public/images/Appreciation-code.jpg"
-            alt="感谢您的支持！"
-            style="width: 300px; height: 300px;"
-          >
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 引入主逻辑脚本, WXT 会将 main.ts -> main.js 并放到同层目录 -->
+  <div id="root"></div>
+  <!-- 只引入由 main.tsx 编译出的 main.js，不要再引入旧 main.ts 产物 -->
   <script type="module" src="./main.js"></script>
 </body>
 </html>
