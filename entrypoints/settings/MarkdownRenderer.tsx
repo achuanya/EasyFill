@@ -19,9 +19,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
         '& h2': { fontSize: '1.5rem', fontWeight: 'bold', mb: 1.5 },
         '& p': { fontSize: '1rem', lineHeight: 1.6, mb: 1.5 },
         '& a': { color: '#1976d2', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } },
+        // 主要修改这部分，图片最大宽度继承父级
         '& img': {
-          maxWidth: '50%',
-          height: 'auto',
+          width: '100%',        // 设置图片宽度为父元素的 100%
+          maxWidth: '100%',     // 确保不会超出父容器
+          height: 'auto',       // 保持图片比例
           borderRadius: '8px',
           mt: 2,
           display: 'block',
