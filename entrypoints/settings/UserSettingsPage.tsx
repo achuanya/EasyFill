@@ -2,6 +2,21 @@ import React, { useState } from 'react';
 import { TextField, Button, Box, Typography, Snackbar } from '@mui/material';
 import { Alert } from '@mui/material';
 
+/**
+ * 用户信息设置页面
+ *  - 包含昵称、邮箱、网址的输入框
+ *  - 保存/更改 按钮
+ *  - Snackbar 提示
+ * @param name 昵称
+ * @param email 邮箱
+ * @param url 网址
+ * @param editing 是否处于编辑状态
+ * @param onNameChange 昵称输入框变化时的回调
+ * @param onEmailChange 邮箱输入框变化时的回调
+ * @param onUrlChange 网址输入框变化时的回调
+ * @param onSaveOrChange 保存/更改 按钮点击时的回调
+ * @returns 用户信息设置页面组件
+ */
 interface UserSettingsPageProps {
   name: string;
   email: string;
@@ -13,6 +28,15 @@ interface UserSettingsPageProps {
   onSaveOrChange: () => void;
 }
 
+/**
+ * 用户信息设置页面组件
+ * @description:
+ *   该组件用于展示和编辑用户的基本信息，包括昵称、邮箱和网址。
+ *   提供保存或更改功能，并通过 Snackbar 提示用户操作结果。
+ * @author:
+ *   游钓四方 <haibao1027@gmail.com>
+ * @date: 2023-10-10
+ */
 const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
   name,
   email,
@@ -24,18 +48,42 @@ const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
   onSaveOrChange,
 }) => {
   // Snackbar 控制显示
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState<'error' | 'info' | 'success' | 'warning'>('error');
+  const [openSnackbar, setOpenSnackbar] = useState(false); // 控制 Snackbar 是否显示
+  const [snackbarMessage, setSnackbarMessage] = useState(''); // Snackbar 显示的消息内容
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'error' | 'info' | 'success' | 'warning'>('error'); // Snackbar 的类型
 
+  /**
+   * 处理保存或更改按钮点击事件
+   * @description:
+   *   验证用户输入的昵称和邮箱是否有效，并根据结果显示提示信息。
+   *   如果验证通过，则调用父组件传递的 onSaveOrChange 方法。
+   * @author: 游钓四方 <haibao1027@gmail.com>
+   * @date: 2023-10-10
+   */
   const handleSaveOrChange = () => {
-    if (!name || !email) {
+    // 验证昵称和邮箱是否为空
+    if (!name && !email) {
       setSnackbarMessage('请填写必填字段：昵称和邮箱!');
       setSnackbarSeverity('error');
       setOpenSnackbar(true);
       return;
     }
 
+    if (!name) {
+      setSnackbarMessage('请填写必填字段：昵称!');
+      setSnackbarSeverity('error');
+      setOpenSnackbar(true);
+      return;
+    }
+
+    if (!email) {
+      setSnackbarMessage('请填写必填字段：邮箱!');
+      setSnackbarSeverity('error');
+      setOpenSnackbar(true);
+      return;
+    }
+
+    // 验证邮箱格式是否正确
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(email)) {
       setSnackbarMessage('请输入有效的邮箱地址!');
@@ -44,10 +92,11 @@ const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
       return;
     }
 
-    // 调用父组件的保存函数
+    // 保存数据
     onSaveOrChange();
     setSnackbarMessage('保存成功！');
     setSnackbarSeverity('success');
+    // 显示 Snackbar
     setOpenSnackbar(true);
   };
 
@@ -55,7 +104,7 @@ const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
     <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
       <Box sx={{ width: '100%', maxWidth: 400 }}>
         <Typography variant="h6" mb={2}>我的信息</Typography>
-        {/* 昵称 */}
+        {/* 昵称输入框 */}
         <TextField
           label="昵称"
           value={name}
@@ -64,7 +113,7 @@ const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
           margin="normal"
           disabled={!editing}
         />
-        {/* 邮箱 */}
+        {/* 邮箱输入框 */}
         <TextField
           label="邮箱"
           value={email}
@@ -73,7 +122,7 @@ const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
           margin="normal"
           disabled={!editing}
         />
-        {/* 网址 */}
+        {/* 网址输入框 */}
         <TextField
           label="网站地址"
           value={url}

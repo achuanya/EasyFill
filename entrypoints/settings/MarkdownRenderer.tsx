@@ -2,14 +2,26 @@ import React, { useMemo } from 'react';
 import { Box } from '@mui/material';
 import { marked } from 'marked';
 
+/**
+ * MarkdownRenderer 组件属性接口
+ * @param content Markdown 文本内容
+ */
 interface MarkdownRendererProps {
   content: string;
 }
 
+/**
+ * MarkdownRenderer 组件
+ * @description:
+ *   将 Markdown 文本解析为 HTML 并渲染到页面。
+ *   使用 useMemo 缓存解析结果以提高性能。
+ * @author: 游钓四方 <haibao1027@gmail.com>
+ * @date: 2023-10-10
+ */
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   // 缓存解析后的 HTML
   const htmlContent = useMemo(() => {
-    return marked(content);
+    return marked(content); // 使用 marked 库解析 Markdown
   }, [content]);
 
   return (
@@ -127,7 +139,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           padding: '0.6em 0.8em',
         },
       }}
-      dangerouslySetInnerHTML={{ __html: htmlContent }}
+      dangerouslySetInnerHTML={{ __html: htmlContent }} // 渲染 HTML 内容
     />
   );
 };

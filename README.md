@@ -20,14 +20,17 @@
 ## ✨ 功能特性
 
 - **智能填充**：DOM 加载完后，自动读取表单插入数据。
-- **中英翻译**：
+- **中英翻译**：支持将评论内容在中英文之间自动翻译，提升跨语言交流的便利性。
 - **无缝集成**：与主流博客平台和评论系统兼容。
 
 ---
 
 ## 🚀 安装
 
-
+1. 打开你的浏览器扩展商店（如 Chrome Web Store 或 Firefox Add-ons）。
+2. 搜索 `EasyFill`。
+3. 点击 **添加到浏览器** 按钮完成安装。
+4. 安装完成后，浏览器工具栏会显示 EasyFill 图标。
 
 ---
 
@@ -74,4 +77,4 @@
 
 ## 📜 许可证
 
-本项目基于 [Mozilla Public License Version 2.0](https://github.com/achuanya/EasyFill/blob/main/LICENSE) 。
+本项目基于 [Mozilla Public License Version 2.0](https://github.com/achuanya/EasyFill/blob/main/LICENSE) 

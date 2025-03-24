@@ -8,21 +8,27 @@ import MarkdownRenderer from './MarkdownRenderer';
 import GlobalScrollbarStyles from './GlobalScrollbarStyles';
 
 /**
- * 整个“设置”界面的根组件
+ * SettingsPage 组件
+ * @description:
+ *   整个“设置”界面的根组件，包含用户信息、推荐插件和关于作者三个选项卡。
+ *   通过 chrome.storage 同步用户数据，并支持 Markdown 内容的加载和渲染。
+ * @author: 游钓四方 <haibao1027@gmail.com>
+ * @date: 2023-10-10
+ * @param 无
  */
 const SettingsPage: React.FC = () => {
-  const [selectedTab, setSelectedTab] = useState(0);
+  const [selectedTab, setSelectedTab] = useState(0); // 当前选中的选项卡索引
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [url, setUrl] = useState('');
+  const [name, setName] = useState(''); // 用户昵称
+  const [email, setEmail] = useState(''); // 用户邮箱
+  const [url, setUrl] = useState(''); // 用户网址
 
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(false); // 是否处于编辑模式
 
-  const [aboutAuthorContent, setAboutAuthorContent] = useState<string>('');
-  const [recommendedPluginsContent, setRecommendedPluginsContent] = useState<string>('');
+  const [aboutAuthorContent, setAboutAuthorContent] = useState<string>(''); // 关于作者的 Markdown 内容
+  const [recommendedPluginsContent, setRecommendedPluginsContent] = useState<string>(''); // 推荐插件的 Markdown 内容
 
-  // 从chrome.storage读取数据
+  // 从 chrome.storage 读取用户数据
   useEffect(() => {
     chrome.storage.sync.get(['name', 'email', 'url'], (data) => {
       const storedName = data.name || '';
@@ -33,25 +39,24 @@ const SettingsPage: React.FC = () => {
       setUrl(storedUrl);
 
       if (storedName || storedEmail || storedUrl) {
-        setEditing(false);
+        setEditing(false); // 如果有数据，则默认不处于编辑模式
       } else {
-        setEditing(true);
+        setEditing(true); // 如果没有数据，则进入编辑模式
       }
     });
 
-    // 通过 useMemo 来缓存 Markdown 内容
+    // 加载 Markdown 内容
     const fetchMarkdown = async (url: string) => {
       try {
         const response = await fetch(url);
         const markdown = await response.text();
-        return marked(markdown);
+        return marked(markdown); // 解析 Markdown
       } catch (error) {
         console.error(`读取 Markdown 文件失败: ${url}`, error);
         return '';
       }
     };
 
-    // 如果之前没有内容，我们就进行加载
     const loadContent = async () => {
       if (!aboutAuthorContent) {
         const aboutAuthor = await fetchMarkdown('/markdowns/about-author.md');
@@ -67,29 +72,19 @@ const SettingsPage: React.FC = () => {
     loadContent();
   }, [aboutAuthorContent, recommendedPluginsContent]);
 
-  // 点击保存/更改按钮 
   const handleSaveOrChange = () => {
     if (!editing) {
-      setEditing(true);
-      return;
-    }
-    if (!name || !email) {
-      alert("1111请填写必填字段：昵称和邮箱!");
-      return;
-    }
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailPattern.test(email)) {
-      alert("111请输入有效的邮箱地址!");
+      setEditing(true); // 切换到编辑模式
       return;
     }
 
     chrome.storage.sync.set({ name, email, url }, () => {
-      setEditing(false);
+      setEditing(false); // 保存数据后退出编辑模式
     });
   };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setSelectedTab(newValue);
+    setSelectedTab(newValue); // 切换选项卡
   };
 
   return (
