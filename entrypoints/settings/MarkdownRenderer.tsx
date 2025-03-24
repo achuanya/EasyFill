@@ -7,7 +7,7 @@ interface MarkdownRendererProps {
 }
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
-  // 使用 useMemo 来缓存渲染的 HTML 内容，只有 content 变化时才会重新渲染
+  // 缓存解析后的 HTML
   const htmlContent = useMemo(() => {
     return marked(content);
   }, [content]);
@@ -15,19 +15,116 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   return (
     <Box
       sx={{
-        '& h1': { fontSize: '2rem', fontWeight: 'bold', mb: 2 },
-        '& h2': { fontSize: '1.5rem', fontWeight: 'bold', mb: 1.5 },
-        '& p': { fontSize: '1rem', lineHeight: 1.6, mb: 1.5 },
-        '& a': { color: '#1976d2', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } },
+        maxWidth: '980px',
+        margin: '0 auto',
+        padding: '0px 32px 0px 32px',
+        fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif,
+                     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"`,
+        fontSize: '16px',
+        lineHeight: 1.5,
+        color: '#24292e',
+
+        '& h1, & h2, & h3, & h4, & h5, & h6': {
+          fontWeight: 600,
+          marginTop: '1.5em',
+          marginBottom: '0.75em',
+          lineHeight: 1.25,
+        },
+        '& h1': {
+          fontSize: '2em',
+          borderBottom: '2px solid #eaecef',
+          paddingBottom: '0.3em',
+        },
+        '& h2': {
+          fontSize: '1.5em',
+          borderBottom: '2px solid #eaecef',
+          paddingBottom: '0.3em',
+        },
+        '& h3': {
+          fontSize: '1.25em',
+        },
+        '& h4': {
+          fontSize: '1em',
+        },
+        '& h5': {
+          fontSize: '0.875em',
+        },
+        '& h6': {
+          fontSize: '0.85em',
+          color: '#6a737d',
+        },
+
+        // 段落与文字
+        '& p': {
+          margin: '0.5em 0',
+        },
+        '& a': {
+          color: '#0366d6',
+          textDecoration: 'none',
+          '&:hover': {
+            textDecoration: 'underline',
+          },
+        },
+
+        // 列表
+        '& ul, & ol': {
+          marginTop: '0.5em',
+          marginBottom: '0.5em',
+          paddingLeft: '2em',
+        },
+        '& li': {
+          marginBottom: '0.25em',
+        },
+
+        // 块引用
+        '& blockquote': {
+          margin: '0.8em 0',
+          padding: '0 1em',
+          color: '#6a737d',
+          borderLeft: '0.25em solid #dfe2e5',
+        },
+
+        // 图片
         '& img': {
-          width: '100%',
           maxWidth: '100%',
-          height: 'auto',
-          borderRadius: '8px',
-          mt: 2,
+          borderRadius: '6px',
           display: 'block',
-          marginLeft: 'auto',
-          marginRight: 'auto',
+          margin: '1em auto',
+        },
+
+        // 代码
+        '& pre': {
+          backgroundColor: '#f6f8fa',
+          padding: '1rem',
+          margin: '1em 0',
+          borderRadius: '6px',
+          fontSize: '85%',
+          lineHeight: 1.45,
+          overflow: 'auto',
+        },
+        '& code': {
+          backgroundColor: 'rgba(27,31,35,0.05)',
+          padding: '0.2em 0.4em',
+          margin: '0 0.1em',
+          borderRadius: '3px',
+          fontSize: '85%',
+        },
+
+        // 表格
+        '& table': {
+          width: '100%',
+          borderCollapse: 'collapse',
+          marginBottom: '1em',
+        },
+        '& th': {
+          border: '1px solid #dfe2e5',
+          padding: '0.6em 0.8em',
+          fontWeight: 600,
+          backgroundColor: '#f6f8fa',
+        },
+        '& td': {
+          border: '1px solid #dfe2e5',
+          padding: '0.6em 0.8em',
         },
       }}
       dangerouslySetInnerHTML={{ __html: htmlContent }}
