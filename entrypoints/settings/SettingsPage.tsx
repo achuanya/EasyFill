@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Tabs, Tab } from '@mui/material';
-import { AccountCircle, Extension, Info } from '@mui/icons-material';
+import { AccountCircle, Extension, Info, History, Chat } from '@mui/icons-material';
 import { marked } from 'marked';
 import GravatarAvatar from './GravatarAvatar';
 import UserSettingsPage from './UserSettingsPage';
@@ -27,6 +27,7 @@ const SettingsPage: React.FC = () => {
 
   const [aboutAuthorContent, setAboutAuthorContent] = useState<string>(''); // 关于作者的 Markdown 内容
   const [recommendedPluginsContent, setRecommendedPluginsContent] = useState<string>(''); // 推荐插件的 Markdown 内容
+  const [updateLogContent, setUpdateLogContent] = useState<string>(''); // 更新日志的 Markdown 内容
 
   // 从 chrome.storage 读取用户数据
   useEffect(() => {
@@ -67,10 +68,15 @@ const SettingsPage: React.FC = () => {
         const recommendedPlugins = await fetchMarkdown('/markdowns/recommended-plugins.md');
         setRecommendedPluginsContent(recommendedPlugins);
       }
+
+      if (!updateLogContent) {
+        const updateLog = await fetchMarkdown('/markdowns/UpdateLog.md');
+        setUpdateLogContent(updateLog);
+      }
     };
 
     loadContent();
-  }, [aboutAuthorContent, recommendedPluginsContent]);
+  }, [aboutAuthorContent, recommendedPluginsContent, updateLogContent]);
 
   const handleSaveOrChange = () => {
     if (!editing) {
@@ -97,9 +103,10 @@ const SettingsPage: React.FC = () => {
             <Tab label="我的信息" icon={<AccountCircle />} />
             <Tab label="推荐插件" icon={<Extension />} />
             <Tab label="关于作者" icon={<Info />} />
+            <Tab label="更新日志" icon={<History />} />
             <Tab
               label="留言"
-              icon={<Info />}
+              icon={<Chat />}
               component="a"
               href="https://lhasa.icu/guestbook.html"
               target="_blank"
@@ -129,6 +136,9 @@ const SettingsPage: React.FC = () => {
 
           {/* 关于作者 */}
           {selectedTab === 2 && <MarkdownRenderer content={aboutAuthorContent} />}
+
+          {/* 更新日志 */}
+          {selectedTab === 3 && <MarkdownRenderer content={updateLogContent} />}
 
           <Box sx={{
             display: 'flex',
