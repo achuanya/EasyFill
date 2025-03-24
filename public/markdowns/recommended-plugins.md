@@ -1,13 +1,13 @@
-以下是我推荐的一些插件，您可以根据需要进行使用：
+### lhasaRSS
 
-## RSS友联展示页
+**高效稳定的RSS聚合解决方案**  
+lhasaRSS 是一个专注于高效和稳定的 RSS 聚合项目，零成本轻松订阅。
+- 项目主页：[lhasaRSS 项目介绍](https://lhasa.icu/ReconstructThelhasaRSSProject.html)  
+- GitHub 仓库：[lhasaRSS GitHub](https://github.com/achuanya/lhasaRSS)
 
-通过这个插件，您可以展示和管理您的RSS订阅，帮助您轻松分享最新内容。
+### EasyFill
 
-- [RSS友联展示页](https://lhasa.icu/GrabLatestRSS.html)
-
-## 填充助手（博客评论表单）
-
-此插件用于自动填写博客评论表单，极大提高表单提交的便捷性。
-
-- [填充助手插件](https://lhasa.icu/FormAutomationPlugin.html)
+**简易填充，让每一次评论更自然，与你的博友互动无缝连接**
+EasyFill 评论表单填充自动化工具，提升博客评论的便捷性和互动体验。
+- Chrome 应用商店：[EasyFill]()
+- GitHub 仓库：[EasyFill GitHub](https://github.com/achuanya/EasyFill)
