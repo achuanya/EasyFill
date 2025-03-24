@@ -9,26 +9,12 @@ import { GlobalStyles } from '@mui/material';
 const GlobalScrollbarStyles: React.FC = () => (
   <GlobalStyles
     styles={{
-      // 定义滚动条的宽度和高度
-      '::-webkit-scrollbar': { width: '10px', height: '10px' },
-      // 定义滚动条滑块的样式
-      '::-webkit-scrollbar-thumb': {
-        backgroundColor: '#1976d2', // 滑块背景颜色
-        borderRadius: '6px',       // 滑块圆角
-        border: '2px solid #fff',  // 滑块边框
-      },
-      // 定义滑块在悬停时的样式
-      '::-webkit-scrollbar-thumb:hover': {
-        backgroundColor: '#1565c0', // 悬停时的背景颜色
-      },
-      // 定义滚动条轨道的样式
-      '::-webkit-scrollbar-track': {
-        backgroundColor: '#f5f5f5', // 轨道背景颜色
-        borderRadius: '6px',        // 轨道圆角
-      },
-      // 定义滚动条拐角的样式
-      '::-webkit-scrollbar-corner': {
-        backgroundColor: 'transparent', // 拐角背景颜色
+      // 隐藏滚动条
+      '::-webkit-scrollbar': { display: 'none' },
+      // 适配其他浏览器的滚动条隐藏
+      '*': {
+        scrollbarWidth: 'none', // Firefox
+        msOverflowStyle: 'none', // IE 10+
       },
     }}
   />

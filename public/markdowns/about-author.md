@@ -14,6 +14,8 @@
 Github：
 [https://github.com/achuanya](https://github.com/achuanya)
 
+Email：haibao1027@gmail.com
+
 ## 订阅
 
 如果您喜欢我的内容，可以通过以下方式订阅我的博客：  

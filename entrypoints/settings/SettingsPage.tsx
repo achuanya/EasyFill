@@ -19,9 +19,9 @@ import GlobalScrollbarStyles from './GlobalScrollbarStyles';
 const SettingsPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState(0); // 当前选中的选项卡索引
 
-  const [name, setName] = useState(''); // 用户昵称
-  const [email, setEmail] = useState(''); // 用户邮箱
-  const [url, setUrl] = useState(''); // 用户网址
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [url, setUrl] = useState('');
 
   const [editing, setEditing] = useState(false); // 是否处于编辑模式
 
@@ -97,6 +97,17 @@ const SettingsPage: React.FC = () => {
             <Tab label="我的信息" icon={<AccountCircle />} />
             <Tab label="推荐插件" icon={<Extension />} />
             <Tab label="关于作者" icon={<Info />} />
+            <Tab
+              label="留言"
+              icon={<Info />}
+              component="a"
+              href="https://lhasa.icu/guestbook.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                setSelectedTab(0); // 切换到“我的信息”选项卡
+              }}
+            />
           </Tabs>
 
           {/* 我的信息 */}
