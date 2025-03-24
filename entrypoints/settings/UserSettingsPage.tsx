@@ -102,9 +102,9 @@ const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
       {/* Snackbar 提示 */}
       <Snackbar
         open={openSnackbar}
-        autoHideDuration={3000}  // 3秒后自动消失
-        onClose={() => setOpenSnackbar(false)}  // 关闭时设置为false
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        autoHideDuration={3000}
+        onClose={() => setOpenSnackbar(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert onClose={() => setOpenSnackbar(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
           {snackbarMessage}

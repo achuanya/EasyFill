@@ -74,12 +74,12 @@ const SettingsPage: React.FC = () => {
       return;
     }
     if (!name || !email) {
-      alert("请填写必填字段：昵称和邮箱!");
+      alert("1111请填写必填字段：昵称和邮箱!");
       return;
     }
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(email)) {
-      alert("请输入有效的邮箱地址!");
+      alert("111请输入有效的邮箱地址!");
       return;
     }
 
@@ -123,6 +123,23 @@ const SettingsPage: React.FC = () => {
 
           {/* 关于作者 */}
           {selectedTab === 2 && <MarkdownRenderer content={aboutAuthorContent} />}
+
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            mt: 3,
+          }}>
+            <img
+              src="/images/WeChat-Official-Account.jpg"
+              alt="游钓四方的博客"
+              style={{
+                maxWidth: '350px',
+                height: 'auto',
+                objectFit: 'contain',
+              }}
+            />
+          </Box>
         </Box>
       </Box>
     </>
