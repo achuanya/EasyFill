@@ -21,4 +21,4 @@ EasyFill 评论表单填充自动化工具，提升博客评论的便捷性和�
 
 如果您觉得我的内容对您有帮助，可以通过以下方式支持我：
 
-![感谢您的支持！](/images/Appreciation-code.jpg)
+<img src="/images/Appreciation-code.jpg" title="感谢您的支持！" style="max-width:50%" />
