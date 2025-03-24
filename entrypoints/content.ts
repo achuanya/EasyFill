@@ -67,13 +67,11 @@ function fillInputFields() {
 
 // 清空输入框内容
 function clearInputFields() {
-  // 获取页面上的所有输入框
   const inputs = document.querySelectorAll('input');
   inputs.forEach((input) => {
     const typeAttr = (input.getAttribute("type") || "").toLowerCase();
-    // 仅清空文本、电子邮件和 URL 类型的输入框
     if (typeAttr === "text" || typeAttr === "email" || typeAttr === "url") {
-      (input as HTMLInputElement).value = ""; // 清空输入框的值
+      (input as HTMLInputElement).value = "";
     }
   });
 }
