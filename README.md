@@ -75,24 +75,47 @@ EasyFill/
 
 ---
 
-## 🤝 贡献
+## 🤝 欢迎贡献代码！
 
-欢迎贡献代码！请参考以下步骤：
+我们欢迎所有开发者为 `EasyFill` 做出贡献！请按照以下步骤参与：
 
-1. Fork 本仓库。
-2. 创建你的功能分支：
+1. **Fork 本仓库**  
+   点击右上角的 **Fork** 按钮，将仓库复制到你的 GitHub 账户中。
+
+2. **创建功能分支**  
+   在你的本地仓库中创建一个新的功能分支：
    ```bash
    git checkout -b feature/你的功能
    ```
-3. 提交更改：
+
+3. **提交更改**  
+   在完成开发后，将更改提交到分支：
    ```bash
-   git commit -m "添加新功能"
+   git commit -m "feat: 添加新功能描述"
    ```
-4. 推送到分支：
+
+4. **推送到远程分支**  
+   将你的分支推送到你 Fork 的仓库：
    ```bash
    git push origin feature/你的功能
    ```
-5. 创建 Pull Request。
+
+5. **创建 Pull Request**  
+   在 GitHub 上访问你的 Fork 仓库，点击 **New Pull Request**，提交你的更改供我们审核。
+
+---
+
+### 📝 注意事项
+- 请确保你的代码符合项目的代码规范。
+- 提交前，请运行所有测试并确保它们通过。
+- 在提交 Pull Request 时，请详细描述你的更改内容和目的。
+
+---
+
+### 🌟 感谢你的贡献！
+
+✨ EasyFill 只为向那些在浮躁时代，依然坚守独立博客精神的你们致敬！
+
 
 ---
 
@@ -101,5 +124,3 @@ EasyFill/
 本项目基于 [Mozilla Public License Version 2.0](https://github.com/achuanya/EasyFill/blob/main/LICENSE)。
 
 ---
-
-✨只为向那些在浮躁时代，依然坚守独立博客精神的你们致敬！
