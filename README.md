@@ -77,7 +77,7 @@ EasyFill/
 
 ## 🤝 欢迎贡献代码！
 
-我们欢迎所有开发者为 `EasyFill` 做出贡献！请按照以下步骤参与：
+欢迎所有开发者为 `EasyFill` 做出贡献！请按照以下步骤参与：
 
 1. **Fork 本仓库**  
    点击右上角的 **Fork** 按钮，将仓库复制到你的 GitHub 账户中。
@@ -101,7 +101,7 @@ EasyFill/
    ```
 
 5. **创建 Pull Request**  
-   在 GitHub 上访问你的 Fork 仓库，点击 **New Pull Request**，提交你的更改供我们审核。
+   在 GitHub 上访问你的 Fork 仓库，点击 **New Pull Request**，提交你的更改供我审核。
 
 ---
 
