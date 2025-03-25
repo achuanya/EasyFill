@@ -16,7 +16,7 @@ interface MarkdownRendererProps {
  *   将 Markdown 文本解析为 HTML 并渲染到页面。
  *   使用 useMemo 缓存解析结果以提高性能。
  * @author: 游钓四方 <haibao1027@gmail.com>
- * @date: 2023-10-10
+ * @date: 2025-3-24
  */
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   // 缓存解析后的 HTML

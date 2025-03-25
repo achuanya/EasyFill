@@ -1,7 +1,7 @@
 /**
  * @description: 提供加密和解密功能的工具函数，基于 AES-GCM 算法。
  * @author: 游钓四方
- * @date: 2023-10-10
+ * @date: 2025-3-25
  */
 
 const ENCRYPTION_KEY = new Uint8Array([

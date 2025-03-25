@@ -6,7 +6,7 @@ import GravatarAvatar from './GravatarAvatar';
 import UserSettingsPage from './UserSettingsPage';
 import MarkdownRenderer from './MarkdownRenderer';
 import GlobalScrollbarStyles from './GlobalScrollbarStyles';
-import { encryptData, decryptData } from '../../utils/cryptoUtils'; // 引入加密工具
+import { encryptData, decryptData } from '../../utils/cryptoUtils';
 
 /**
  * SettingsPage 组件
@@ -14,7 +14,7 @@ import { encryptData, decryptData } from '../../utils/cryptoUtils'; // 引入加
  *   整个“设置”界面的根组件，包含用户信息、推荐插件和关于作者三个选项卡。
  *   通过 chrome.storage 同步用户数据，并支持 Markdown 内容的加载和渲染。
  * @author: 游钓四方 <haibao1027@gmail.com>
- * @date: 2023-10-10
+ * @date: 2025-3-24
  * @param 无
  */
 const SettingsPage: React.FC = () => {

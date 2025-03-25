@@ -35,7 +35,7 @@ interface UserSettingsPageProps {
  *   提供保存或更改功能，并通过 Snackbar 提示用户操作结果。
  * @author:
  *   游钓四方 <haibao1027@gmail.com>
- * @date: 2023-10-10
+ * @date: 2025-3-24
  */
 const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
   name,
@@ -58,7 +58,7 @@ const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
    *   验证用户输入的昵称和邮箱是否有效，并根据结果显示提示信息。
    *   如果验证通过，则调用父组件传递的 onSaveOrChange 方法。
    * @author: 游钓四方 <haibao1027@gmail.com>
-   * @date: 2023-10-10
+   * @date: 2025-3-24
    */
   const handleSaveOrChange = () => {
     // 验证昵称和邮箱是否为空

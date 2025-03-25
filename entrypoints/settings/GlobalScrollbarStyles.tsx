@@ -4,7 +4,7 @@ import { GlobalStyles } from '@mui/material';
 /**
  * @description: 定义全局滚动条样式组件，使用 Material-UI 的 GlobalStyles。
  * @author: 游钓四方 <haibao1027@gmail.com>
- * @date: 2023-10-10
+ * @date: 2025-3-24
  */
 const GlobalScrollbarStyles: React.FC = () => (
   <GlobalStyles

@@ -18,7 +18,7 @@ interface GravatarAvatarProps {
  *   根据用户的邮箱生成 Gravatar 头像，并显示用户的昵称和邮箱。
  *   如果邮箱为空，则使用默认头像。
  * @author: 游钓四方 <haibao1027@gmail.com>
- * @date: 2023-10-10
+ * @date: 2025-3-24
  */
 const GravatarAvatar: React.FC<GravatarAvatarProps> = ({ name, email }) => {
   // 生成 Gravatar 头像 URL

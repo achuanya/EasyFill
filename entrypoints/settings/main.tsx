@@ -9,9 +9,9 @@ import SettingsPage from './SettingsPage';
  *   这是整个设置页面的启动点。
  * @author:
  *   游钓四方 <haibao1027@gmail.com>
- * @date: 2023-10-10
+ * @date: 2025-3-24
  */
-const container = document.getElementById('root'); // 获取 root 容器
+const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container); // 创建 React 根节点
   root.render(<SettingsPage />); // 渲染 SettingsPage 组件
