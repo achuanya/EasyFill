@@ -44,6 +44,9 @@ export default defineConfig({
         ],
         matches: ['<all_urls>']
       }
-    ]
+    ],
+    content_security_policy: {
+      extension_pages: "script-src 'self'; object-src 'self';",
+    }
   }
 });

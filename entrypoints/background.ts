@@ -4,12 +4,10 @@
  * @date: 2023-10-10
  */
 export default defineBackground(() => {
-  console.log('[Background] 已加载。'); // 输出后台脚本加载成功的日志
-
-  // 点击扩展图标时，打开 settings.html 页面
+  console.log('[Background] 已加载。');
   chrome.action.onClicked.addListener(() => {
     chrome.tabs.create({
-      url: chrome.runtime.getURL('settings.html'), // 获取扩展内的 settings.html 文件路径
+      url: chrome.runtime.getURL('settings.html'),
     });
   });
 });

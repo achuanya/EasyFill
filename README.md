@@ -21,6 +21,9 @@
 
 - **智能填充**：DOM 加载完后，自动读取表单插入数据。
 - **无缝集成**：与主流博客平台和评论系统兼容。
+- **数据加密**：通过 `cryptoUtils.ts` 提供 AES-GCM 加密和解密功能，保护用户数据安全。
+- **现代化界面**：基于 Material-UI 和 React 提供用户友好的界面。
+- **多浏览器支持**：使用 WXT 框架，支持 Chrome 和 Firefox 浏览器。
 
 ---
 
@@ -36,8 +39,27 @@
 ## 🛠 使用方法
 
 1. 安装扩展后，点击浏览器工具栏上的 EasyFill 图标。
-2. 在弹出的设置页面中，配置你的信息
+2. 在弹出的设置页面中，配置你的信息。
 3. 在评论框中输入数据时，自动将数据插入表单。
+
+---
+
+## 📂 项目结构
+
+```
+EasyFill/
+├── public/                # 公共资源文件
+│   ├── icon/              # 图标文件
+│   └── markdowns/         # 推荐插件等 Markdown 文件
+├── utils/                 # 工具函数
+│   └── cryptoUtils.ts     # 数据加密与解密工具
+├── content-scripts/       # 内容脚本
+├── background.js          # 后台服务脚本
+├── wxt.config.ts          # WXT 配置文件
+├── package.json           # 项目依赖与脚本
+├── yarn.lock              # Yarn 锁定文件
+└── README.md              # 项目说明文档
+```
 
 ---
 
@@ -49,7 +71,7 @@
 
 ## 🐛 问题反馈
 
-如果你在使用过程中遇到问题，请在我的博客[留言](https://lhasa.icu/guestbook.html)
+如果你在使用过程中遇到问题，请在我的博客[留言](https://lhasa.icu/guestbook.html)。
 
 ---
 
@@ -76,4 +98,8 @@
 
 ## 📜 许可证
 
-本项目基于 [Mozilla Public License Version 2.0](https://github.com/achuanya/EasyFill/blob/main/LICENSE) 
+本项目基于 [Mozilla Public License Version 2.0](https://github.com/achuanya/EasyFill/blob/main/LICENSE)。
+
+---
+
+只为向那些在浮躁时代，依然坚守独立博客精神的你们致敬！

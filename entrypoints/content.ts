@@ -4,6 +4,8 @@
  * @date: 2023-10-10
  */
 
+import { decryptData } from '../utils/cryptoUtils';
+
 // 自动启用输入框的自动完成功能
 function handleAutocomplete() {
   // 获取页面上的所有输入框
@@ -29,15 +31,19 @@ const keywordSets = {
   ])
 };
 
+const DEBUG_MODE = false; // 调试开关
+
 // 填充输入框内容
 function fillInputFields() {
   // 从 Chrome 的同步存储中获取用户的 name、email 和 url 数据
-  chrome.storage.sync.get(['name', 'email', 'url'], (data) => {
-    const { name, email, url } = data;
+  chrome.storage.sync.get(['name', 'email', 'url'], async (data) => {
+    const name = data.name ? await decryptData(data.name) : '';
+    const email = data.email ? await decryptData(data.email) : '';
+    const url = data.url ? await decryptData(data.url) : '';
 
     // 如果昵称和邮箱为空，则不执行填充逻辑
     if (!name || !email) {
-      console.warn("[Content Script] 缺少必填项：昵称或邮箱，跳过填充。");
+      if (DEBUG_MODE) console.warn("[EasyFill] 缺少必填项：昵称或邮箱，跳过填充。");
       return;
     }
 
@@ -46,6 +52,7 @@ function fillInputFields() {
     inputs.forEach((input) => {
       const typeAttr = (input.getAttribute("type") || "").toLowerCase();
       const nameAttr = (input.getAttribute("name") || "").toLowerCase();
+      const currentValue = input.value;
       let valueToSet = ""; // 初始化要设置的值
 
       // 根据关键字集合和属性匹配，确定要填充的值
@@ -57,8 +64,22 @@ function fillInputFields() {
         valueToSet = name || valueToSet;
       }
 
-      // 如果确定了要填充的值，则设置到输入框中
-      if (valueToSet) {
+      // 过滤无关字段
+      if (!valueToSet) return;
+
+      // 输出 JSON 格式日志
+      const logEntry = {
+        name: nameAttr || typeAttr,
+        type: typeAttr,
+        currentValue,
+        valueToSet,
+        action: currentValue === valueToSet ? "SKIP" : "FILL",
+      };
+
+      if (DEBUG_MODE) console.log("[EasyFill]", JSON.stringify(logEntry));
+
+      // 执行填充操作
+      if (logEntry.action === "FILL") {
         (input as HTMLInputElement).value = valueToSet;
       }
     });

@@ -6,6 +6,7 @@ import GravatarAvatar from './GravatarAvatar';
 import UserSettingsPage from './UserSettingsPage';
 import MarkdownRenderer from './MarkdownRenderer';
 import GlobalScrollbarStyles from './GlobalScrollbarStyles';
+import { encryptData, decryptData } from '../../utils/cryptoUtils'; // 引入加密工具
 
 /**
  * SettingsPage 组件
@@ -32,21 +33,27 @@ const SettingsPage: React.FC = () => {
 
   // 从 chrome.storage 读取用户数据
   useEffect(() => {
-    chrome.storage.sync.get(['name', 'email', 'url'], (data) => {
-      const storedName = data.name || '';
-      const storedEmail = data.email || '';
-      const storedUrl = data.url || '';
-      setName(storedName);
-      setEmail(storedEmail);
-      setUrl(storedUrl);
+    const loadUserData = async () => {
+      chrome.storage.sync.get(['name', 'email', 'url'], async (data) => {
+        const storedName = data.name ? await decryptData(data.name) : '';
+        const storedEmail = data.email ? await decryptData(data.email) : '';
+        const storedUrl = data.url ? await decryptData(data.url) : '';
+        setName(storedName);
+        setEmail(storedEmail);
+        setUrl(storedUrl);
 
-      if (storedName || storedEmail || storedUrl) {
-        setEditing(false); // 如果有数据，则默认不处于编辑模式
-      } else {
-        setEditing(true); // 如果没有数据，则进入编辑模式
-      }
-    });
+        if (storedName || storedEmail || storedUrl) {
+          setEditing(false); // 如果有数据，则默认不处于编辑模式
+        } else {
+          setEditing(true); // 如果没有数据，则进入编辑模式
+        }
+      });
+    };
 
+    loadUserData(); // 加载用户数据
+  }, []); // 移除不必要的依赖项，确保只在组件挂载时调用一次
+
+  useEffect(() => {
     // 加载 Markdown 内容
     const fetchMarkdown = async (url: string) => {
       try {
@@ -84,13 +91,19 @@ const SettingsPage: React.FC = () => {
     loadContent();
   }, [aboutAuthorContent, recommendedPluginsContent, updateLogContent, privacyPolicyContent]);
 
-  const handleSaveOrChange = () => {
+  const handleSaveOrChange = async () => {
     if (!editing) {
       setEditing(true); // 切换到编辑模式
       return;
     }
 
-    chrome.storage.sync.set({ name, email, url }, () => {
+    const encryptedName = await encryptData(name);
+    const encryptedEmail = await encryptData(email);
+    const encryptedUrl = await encryptData(url);
+
+    console.log('加密后的数据:', { encryptedName, encryptedEmail, encryptedUrl });
+
+    chrome.storage.sync.set({ name: encryptedName, email: encryptedEmail, url: encryptedUrl }, () => {
       setEditing(false); // 保存数据后退出编辑模式
     });
   };
