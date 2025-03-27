@@ -6,7 +6,7 @@
 
     基于 TypeScript、React 和 Chrome Extension API 开发，结合 Material-UI 提供现代化界面，
     
-    使用 WXT 框架实现高效开发与多浏览器兼容，支持智能表单填充、数据加密存储功能。  
+    使用 WXT 框架实现高效开发，支持智能表单填充、数据加密存储功能。  
 
 - Chrome 应用商店：[EasyFill]()
 - GitHub 仓库：[EasyFill GitHub](https://github.com/achuanya/EasyFill)
@@ -29,10 +29,10 @@ lhasaRSS 是一个专注于高效和稳定的 RSS 聚合项目，零成本轻松
 - 博客章节：[利用 Go + COS + GitHub 重构 RSS 爬虫](https://lhasa.icu/ReconstructThelhasaRSSProject.html)  
 - GitHub 仓库：[lhasaRSS GitHub](https://github.com/achuanya/lhasaRSS)
 
-## 支持作者
+## 🧡 支持作者
 
 感谢您对我的支持，本人非程序员，忙里抽闲，为爱发电。
 
-如果您觉得我的创作对您有帮助，可以通过以下方式支持我：
+如果您觉得 EasyFill 对您有帮助，可以通过以下方式支持我继续创作：
 
 <img src="/images/Appreciation-code.jpg" title="感谢您的支持！" style="max-width:50%" />
