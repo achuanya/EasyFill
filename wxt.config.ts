@@ -4,7 +4,7 @@ export default defineConfig({
   extensionApi: 'chrome',
   manifest:{
     manifest_version: 3,
-    name: '简易填充',
+    name: 'EasyFill',
     version: '1.0.0',
     description: '简易填充，让每一次评论更自然，与你的博友互动无缝连接',
     icons: {
