@@ -23,13 +23,12 @@
 - **无缝集成**：与主流博客平台和评论系统兼容。
 - **数据加密**：通过 `cryptoUtils.ts` 提供 AES-GCM 加密和解密功能，保护用户数据安全。
 - **现代化界面**：基于 Material-UI 和 React 提供用户友好的界面。
-- **多浏览器支持**：使用 WXT 框架，支持 Chrome 和 Firefox 浏览器。
 
 ---
 
 ## 🚀 安装
 
-1. 打开你的浏览器扩展商店（如 Chrome Web Store 或 Firefox Add-ons）。
+1. 打开 Chrome Web Store
 2. 搜索 `EasyFill`。
 3. 点击 **添加到浏览器** 按钮完成安装。
 4. 安装完成后，浏览器工具栏会显示 EasyFill 图标。
