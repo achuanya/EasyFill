@@ -35,33 +35,6 @@
 
 ---
 
-## 🛠 使用方法
-
-1. 安装扩展后，点击浏览器工具栏上的 EasyFill 图标。
-2. 在弹出的设置页面中，配置你的信息。
-3. 在评论框中输入数据时，自动将数据插入表单。
-
----
-
-## 📂 项目结构
-
-```
-EasyFill/
-├── public/                # 公共资源文件
-│   ├── icon/              # 图标文件
-│   └── markdowns/         # 推荐插件等 Markdown 文件
-├── utils/                 # 工具函数
-│   └── cryptoUtils.ts     # 数据加密与解密工具
-├── content-scripts/       # 内容脚本
-├── background.js          # 后台服务脚本
-├── wxt.config.ts          # WXT 配置文件
-├── package.json           # 项目依赖与脚本
-├── yarn.lock              # Yarn 锁定文件
-└── README.md              # 项目说明文档
-```
-
----
-
 ## 📄 更新日志
 
 查看 [更新日志](https://github.com/achuanya/EasyFill/blob/main/UpdateLog.md) 了解最新功能和修复。
