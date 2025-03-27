@@ -8,7 +8,7 @@
 
 <img src="/images/my-photo.jpg" title="我的骑行照" />
 
-博客：
+Blog：
 [https://lhasa.icu](https://lhasa.icu)
 
 Github：
@@ -19,5 +19,5 @@ Email：haibao1027@gmail.com
 ## 订阅
 
 如果您喜欢我的内容，可以通过以下方式订阅我的博客：  
-- Atom订阅：[https://lhasa.icu/atom.xml](https://lhasa.icu/atom.xml) 
-- RSS订阅：[https://lhasa.icu/rss.xml](https://lhasa.icu/rss.xml)
+- Atom：[https://lhasa.icu/atom.xml](https://lhasa.icu/atom.xml) 
+- RSS：[https://lhasa.icu/rss.xml](https://lhasa.icu/rss.xml)
