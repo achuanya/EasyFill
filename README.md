@@ -37,7 +37,7 @@
 
 ## 📄 更新日志
 
-查看 [更新日志](https://github.com/achuanya/EasyFill/blob/main/UpdateLog.md) 了解最新功能和修复。
+查看 [更新日志](https://github.com/achuanya/EasyFill/blob/main/public/markdowns/UpdateLog.md) 了解最新功能和修复。
 
 ---
 
