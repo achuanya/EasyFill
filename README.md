@@ -8,7 +8,6 @@
       <img src="https://cos.lhasa.icu/svg/link-996.icu-red.svg" alt="996.icu" />
   </a>
   <img src="https://img.shields.io/github/license/achuanya/EasyFill" alt="GitHub license" />
-  <img src="https://img.shields.io/github/actions/workflow/status/achuanya/EasyFill/rss_update.yml?branch=main" alt="GitHub Workflow Status" />
   <img src="https://img.shields.io/github/issues/achuanya/EasyFill" alt="GitHub issues" />
 </p>
 <p align="center">
