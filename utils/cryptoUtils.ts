@@ -42,7 +42,7 @@ export async function encryptData(data: string): Promise<string> {
   const result = `${btoa(String.fromCharCode(...iv))}:${btoa(String.fromCharCode(...new Uint8Array(encrypted)))}`;
   
   if (DEBUG_MODE) {
-    console.log('加密成功:', { data, iv: Array.from(iv), encrypted: result });
+    logger.info('加密成功:', { data, iv: Array.from(iv), encrypted: result });
   }
   
   return result;
@@ -66,9 +66,6 @@ export async function decryptData(encryptedData: string): Promise<string> {
   const dec = new TextDecoder();
   const result = dec.decode(decrypted);
 
-  if (DEBUG_MODE) {
-    console.log('解密成功:', { encryptedData, iv: Array.from(iv), decrypted: result });
-  }
-
+  logger.info('解密成功:', { encryptedData, iv: Array.from(iv), decrypted: result });
   return result;
 }

@@ -7,6 +7,7 @@ import UserSettingsPage from './UserSettingsPage';
 import MarkdownRenderer from './MarkdownRenderer';
 import GlobalScrollbarStyles from './GlobalScrollbarStyles';
 import { encryptData, decryptData } from '../../utils/cryptoUtils';
+import { logger } from '../../utils/logger';
 
 /**
  * SettingsPage 组件
@@ -34,24 +35,33 @@ const SettingsPage: React.FC = () => {
   // 从 chrome.storage 读取用户数据
   useEffect(() => {
     const loadUserData = async () => {
+      logger.info('开始加载用户数据');
       chrome.storage.sync.get(['name', 'email', 'url'], async (data) => {
-        const storedName = data.name ? await decryptData(data.name) : '';
-        const storedEmail = data.email ? await decryptData(data.email) : '';
-        const storedUrl = data.url ? await decryptData(data.url) : '';
-        setName(storedName);
-        setEmail(storedEmail);
-        setUrl(storedUrl);
+        try {
+          const storedName = data.name ? await decryptData(data.name) : '';
+          const storedEmail = data.email ? await decryptData(data.email) : '';
+          const storedUrl = data.url ? await decryptData(data.url) : '';
+          
+          setName(storedName);
+          setEmail(storedEmail);
+          setUrl(storedUrl);
 
-        if (storedName || storedEmail || storedUrl) {
-          setEditing(false); // 如果有数据，则默认不处于编辑模式
-        } else {
-          setEditing(true); // 如果没有数据，则进入编辑模式
+          if (storedName || storedEmail || storedUrl) {
+            setEditing(false);
+            logger.info('用户数据加载成功');
+          } else {
+            setEditing(true);
+            logger.info('未找到用户数据，进入编辑模式');
+          }
+        } catch (error) {
+          logger.error('解密用户数据时出错', error);
+          setEditing(true);
         }
       });
     };
 
-    loadUserData(); // 加载用户数据
-  }, []); // 移除不必要的依赖项，确保只在组件挂载时调用一次
+    loadUserData();
+  }, []);
 
   useEffect(() => {
     // 加载 Markdown 内容
@@ -60,22 +70,28 @@ const SettingsPage: React.FC = () => {
         // 检查 localStorage 是否已有缓存
         const cachedMarkdown = localStorage.getItem(url);
         if (cachedMarkdown) {
-          // console.log(`从 localStorage 加载缓存: ${url}`);
+          logger.info(`从缓存加载 Markdown 文件: ${url}`);
           return cachedMarkdown;
         }
 
         // 如果没有缓存，从网络加载
+        logger.info(`从网络加载 Markdown 文件: ${url}`);
         const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP 错误: ${response.status}`);
+        }
+        
         const markdown = await response.text();
 
         // 将加载的内容存入 localStorage
         localStorage.setItem(url, markdown);
-        // console.log(`缓存到 localStorage: ${url}`);
+        logger.info(`Markdown 文件已缓存: ${url}`);
 
         return marked(markdown);
       } catch (error) {
-        console.error(`读取 Markdown 文件失败: ${url}`, error);
-        return '';
+        logger.error(`加载 Markdown 文件失败: ${url}`, error);
+        return `加载内容失败，请重试。错误: ${error instanceof Error ? error.message : String(error)}`;
       }
     };
 
@@ -100,23 +116,42 @@ const SettingsPage: React.FC = () => {
 
   const handleSaveOrChange = async () => {
     if (!editing) {
-      setEditing(true); // 切换到编辑模式
+      logger.info('用户开始编辑个人信息');
+      setEditing(true);
       return;
     }
 
-    const encryptedName = await encryptData(name);
-    const encryptedEmail = await encryptData(email);
-    const encryptedUrl = await encryptData(url);
+    try {
+      logger.info('开始保存用户数据');
+      
+      // 简单验证
+      if (email && !email.includes('@')) {
+        logger.warn('用户提供的邮箱格式无效');
+        // 你可以在这里添加提示用户的代码
+        return;
+      }
+      
+      const encryptedName = await encryptData(name);
+      const encryptedEmail = await encryptData(email);
+      const encryptedUrl = await encryptData(url);
 
-    console.log('加密后的数据:', { encryptedName, encryptedEmail, encryptedUrl });
-
-    chrome.storage.sync.set({ name: encryptedName, email: encryptedEmail, url: encryptedUrl }, () => {
-      setEditing(false); // 保存数据后退出编辑模式
-    });
+      chrome.storage.sync.set({ name: encryptedName, email: encryptedEmail, url: encryptedUrl }, () => {
+        if (chrome.runtime.lastError) {
+          logger.error('保存用户数据时出错', chrome.runtime.lastError);
+          return;
+        }
+        
+        setEditing(false);
+        logger.info('用户数据保存成功');
+      });
+    } catch (error) {
+      logger.error('加密或保存用户数据时出错', error);
+    }
   };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setSelectedTab(newValue); // 切换选项卡
+    logger.info(`用户切换到标签: ${newValue}`);
+    setSelectedTab(newValue);
   };
 
   return (
