@@ -57,9 +57,22 @@ const SettingsPage: React.FC = () => {
     // 加载 Markdown 内容
     const fetchMarkdown = async (url: string) => {
       try {
+        // 检查 localStorage 是否已有缓存
+        const cachedMarkdown = localStorage.getItem(url);
+        if (cachedMarkdown) {
+          // console.log(`从 localStorage 加载缓存: ${url}`);
+          return cachedMarkdown;
+        }
+
+        // 如果没有缓存，从网络加载
         const response = await fetch(url);
         const markdown = await response.text();
-        return marked(markdown); // 解析 Markdown
+
+        // 将加载的内容存入 localStorage
+        localStorage.setItem(url, markdown);
+        // console.log(`缓存到 localStorage: ${url}`);
+
+        return marked(markdown);
       } catch (error) {
         console.error(`读取 Markdown 文件失败: ${url}`, error);
         return '';
@@ -67,29 +80,23 @@ const SettingsPage: React.FC = () => {
     };
 
     const loadContent = async () => {
-      if (!aboutAuthorContent) {
-        const aboutAuthor = await fetchMarkdown('/markdowns/about-author.md');
+      if (!aboutAuthorContent && !recommendedPluginsContent && !updateLogContent && !privacyPolicyContent) {
+        const [aboutAuthor, recommendedPlugins, updateLog, privacyPolicy] = await Promise.all([
+          fetchMarkdown('/markdowns/about-author.md'),
+          fetchMarkdown('/markdowns/recommended-plugins.md'),
+          fetchMarkdown('/markdowns/UpdateLog.md'),
+          fetchMarkdown('/markdowns/privacy-policy.md'),
+        ]);
+  
         setAboutAuthorContent(aboutAuthor);
-      }
-
-      if (!recommendedPluginsContent) {
-        const recommendedPlugins = await fetchMarkdown('/markdowns/recommended-plugins.md');
         setRecommendedPluginsContent(recommendedPlugins);
-      }
-
-      if (!updateLogContent) {
-        const updateLog = await fetchMarkdown('/markdowns/UpdateLog.md');
         setUpdateLogContent(updateLog);
-      }
-
-      if (!privacyPolicyContent) {
-        const privacyPolicy = await fetchMarkdown('/markdowns/privacy-policy.md');
         setPrivacyPolicyContent(privacyPolicy);
       }
     };
 
     loadContent();
-  }, [aboutAuthorContent, recommendedPluginsContent, updateLogContent, privacyPolicyContent]);
+  }, []);
 
   const handleSaveOrChange = async () => {
     if (!editing) {
