@@ -27,8 +27,8 @@
 
 ## 🚀 安装
 
-1. 打开 Chrome Web Store
-2. 搜索 `EasyFill`。
+1. 打开 Chrome 应用商店
+2. 搜索 <a href="https://chromewebstore.google.com/detail/eamchegekphehbmebccbapnihegngobm?utm_source=item-share-cb" target="_blank">EasyFill</a>。
 3. 点击 **添加到浏览器** 按钮完成安装。
 4. 安装完成后，浏览器工具栏会显示 EasyFill 图标。
 
