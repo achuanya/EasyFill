@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TextField, Button, Box, Typography, Snackbar } from '@mui/material';
 import { Alert } from '@mui/material';
+import { logger } from '../../utils/logger';
 
 /**
  * 用户信息设置页面
@@ -61,42 +62,50 @@ const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
    * @date: 2025-3-24
    */
   const handleSaveOrChange = () => {
-    // 验证昵称和邮箱是否为空
-    if (!name && !email) {
-      setSnackbarMessage('请填写必填字段：昵称和邮箱!');
-      setSnackbarSeverity('error');
-      setOpenSnackbar(true);
-      return;
+    logger.info('开始验证用户信息', { name, email, url });
+    
+    // 定义验证规则
+    const validations = [
+      {
+        isValid: !!name,
+        message: '请填写必填字段：昵称!',
+        field: 'name'
+      },
+      {
+        isValid: !!email,
+        message: '请填写必填字段：邮箱!',
+        field: 'email'
+      },
+      {
+        isValid: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || ''),
+        message: '请输入有效的邮箱地址!',
+        field: 'email',
+        skipIfEmpty: false // 如果邮箱不为空，跳过此验证（因为前面已经验证了）
+      }
+    ];
+
+    // 执行验证
+    for (const validation of validations) {
+      // 如果需要跳过且字段为空，继续下一个验证
+      if (validation.skipIfEmpty && !validation[validation.field as keyof typeof validation]) {
+        continue;
+      }
+      
+      // 验证失败，显示错误信息
+      if (!validation.isValid) {
+        logger.warn(`验证失败: ${validation.message}`, { field: validation.field });
+        setSnackbarMessage(validation.message);
+        setSnackbarSeverity('error');
+        setOpenSnackbar(true);
+        return; // 早期返回，避免不必要的验证
+      }
     }
 
-    if (!name) {
-      setSnackbarMessage('请填写必填字段：昵称!');
-      setSnackbarSeverity('error');
-      setOpenSnackbar(true);
-      return;
-    }
-
-    if (!email) {
-      setSnackbarMessage('请填写必填字段：邮箱!');
-      setSnackbarSeverity('error');
-      setOpenSnackbar(true);
-      return;
-    }
-
-    // 验证邮箱格式是否正确
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailPattern.test(email)) {
-      setSnackbarMessage('请输入有效的邮箱地址!');
-      setSnackbarSeverity('error');
-      setOpenSnackbar(true);
-      return;
-    }
-
-    // 保存数据
+    // 所有验证通过，保存数据
+    logger.info('验证通过，保存用户信息');
     onSaveOrChange();
     setSnackbarMessage('保存成功！');
     setSnackbarSeverity('success');
-    // 显示 Snackbar
     setOpenSnackbar(true);
   };
 

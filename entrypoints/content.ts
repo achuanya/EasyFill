@@ -94,10 +94,9 @@ function fillInputFields() {
             action: currentValue === valueToSet ? "SKIP" : "FILL",
           };
 
-          logger.info("[EasyFill]", JSON.stringify(logEntry));
-
           // 执行填充操作
           if (logEntry.action === "FILL") {
+            logger.info('填充表单字段', JSON.stringify(logEntry));
             (input as HTMLInputElement).value = valueToSet;
             fieldsFound++;
           }
