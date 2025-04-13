@@ -1,7 +1,14 @@
 /**
- * @description: 定义内容脚本，处理页面上的自动填充逻辑。
- * @author: 游钓四方 <haibao1027@gmail.com>
- * @date: 2025-3-24
+ * @description  Background script
+ * --------------------------------------------------------------------------
+ * @author       游钓四方 <haibao1027@gmail.com>
+ * @created      2025-03-24
+ * @lastModified 2025-04-13
+ * --------------------------------------------------------------------------
+ * @copyright    (c) 2025 游钓四方
+ * @license      MPL-2.0
+ * --------------------------------------------------------------------------
+ * @module       background
  */
 
 import { logger } from '../utils/logger';

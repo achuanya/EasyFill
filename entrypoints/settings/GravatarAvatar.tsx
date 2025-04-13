@@ -1,9 +1,23 @@
+/**
+ * @description  GravatarAvatar 组件，使用 Gravatar 头像服务来显示用户头像
+ * --------------------------------------------------------------------------
+ * @author       游钓四方 <haibao1027@gmail.com>
+ * @created      2025-03-24
+ * @lastModified 2025-04-13
+ * --------------------------------------------------------------------------
+ * @copyright    (c) 2025 游钓四方
+ * @license      MPL-2.0
+ * --------------------------------------------------------------------------
+ * @module       GravatarAvatar
+ */
+
+
 import React from 'react';
 import { Avatar, Box, Typography } from '@mui/material';
 import md5 from 'md5';
 
 /**
- * GravatarAvatar 组件属性接口
+ * @description GravatarAvatarProps 接口
  * @param name 用户昵称
  * @param email 用户邮箱
  */
@@ -13,12 +27,10 @@ interface GravatarAvatarProps {
 }
 
 /**
- * GravatarAvatar 组件
- * @description:
- *   根据用户的邮箱生成 Gravatar 头像，并显示用户的昵称和邮箱。
- *   如果邮箱为空，则使用默认头像。
- * @author: 游钓四方 <haibao1027@gmail.com>
- * @date: 2025-3-24
+ * @description GravatarAvatar 组件
+ * @param name 用户昵称
+ * @param email 用户邮箱
+ * @returns JSX.Element
  */
 const GravatarAvatar: React.FC<GravatarAvatarProps> = ({ name, email }) => {
   // 生成 Gravatar 头像 URL

@@ -39,7 +39,8 @@ export default defineConfig({
       {
         resources: [
           'settings.html',
-          'images/*'
+          'images/*',
+          'data/keywords.json'
         ],
         matches: ['<all_urls>']
       }

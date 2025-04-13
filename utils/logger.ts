@@ -1,17 +1,38 @@
 /**
- * @description: 提供统一的日志记录功能，支持三个日志级别和颜色输出。
- * @author: 游钓四方 <haibao1027@gmail.com>
- * @date: 2025-4-10
+ * @description 提供统一的日志记录功能，支持三个日志级别和颜色输出。
+ * --------------------------------------------------------------------------
+ * @author       游钓四方 <haibao1027@gmail.com>
+ * @created      2025-04-13
+ * @lastModified 2025-04-13
+ * --------------------------------------------------------------------------
+ * @copyright    (c) 2025 游钓四方
+ * @license      MPL-2.0
+ * --------------------------------------------------------------------------
+ * @module       logger
  */
 
-// 定义日志级别枚举
+/**
+ * @description: 日志级别枚举
+ * @enum {string}
+ * @property {string} INFO - 信息级别日志
+ * @property {string} WARN - 警告级别日志
+ * @property {string} ERROR - 错误级别日志
+ */
 export enum LogLevel {
   INFO = 'INFO',
   WARN = 'WARN',
   ERROR = 'ERROR',
 }
 
-// 定义日志颜色
+/**
+ * @description: 日志颜色配置接口
+ * @interface LogColors
+ * @property {string} info - 信息级别日志颜色
+ * @property {string} warn - 警告级别日志颜色
+ * @property {string} error - 错误级别日志颜色
+ * @property {string} prefix - 日志前缀颜色
+ * @property {string} timestamp - 日志时间戳颜色
+ */
 interface LogColors {
   info: string;
   warn: string;
@@ -20,7 +41,16 @@ interface LogColors {
   timestamp: string;
 }
 
-// 日志配置接口
+/**
+ * @description: 日志配置接口
+ * @interface LoggerConfig
+ * @property {LogLevel} level - 日志级别
+ * @property {string} prefix - 日志前缀
+ * @property {boolean} enabled - 是否启用日志输出
+ * @property {boolean} useColors - 是否启用彩色输出
+ * @property {boolean} showTimestamp - 是否显示时间戳
+ * @property {LogColors} colors - 日志颜色配置
+ */
 interface LoggerConfig {
   level: LogLevel;
   prefix: string;
@@ -30,7 +60,15 @@ interface LoggerConfig {
   colors: LogColors;
 }
 
-// 默认颜色配置
+/**
+ * @description: 默认日志颜色配置
+ * @constant DEFAULT_COLORS
+ * @property {LogColors} info - 信息级别日志颜色
+ * @property {LogColors} warn - 警告级别日志颜色
+ * @property {LogColors} error - 错误级别日志颜色
+ * @property {LogColors} prefix - 日志前缀颜色
+ * @property {LogColors} timestamp - 日志时间戳颜色
+ */
 const DEFAULT_COLORS: LogColors = {
   info: 'color: #2196F3; font-weight: normal',
   warn: 'color: #FF9800; font-weight: bold',
@@ -39,10 +77,19 @@ const DEFAULT_COLORS: LogColors = {
   timestamp: 'color: #9E9E9E; font-weight: normal',
 };
 
+
 /**
- * 日志系统类
+ * @description: 日志系统类
  * 提供三个级别的日志记录功能：INFO, WARN, ERROR
  * 支持彩色输出和时间戳
+ * @class Logger
+ * @property {LoggerConfig} config - 日志配置
+ * @property {LogLevel} config.level - 日志级别
+ * @property {string} config.prefix - 日志前缀
+ * @property {boolean} config.enabled - 是否启用日志输出
+ * @property {boolean} config.useColors - 是否启用彩色输出
+ * @property {boolean} config.showTimestamp - 是否显示时间戳
+ * @property {LogColors} config.colors - 日志颜色配置
  */
 export class Logger {
   private static instance: Logger;
@@ -55,15 +102,14 @@ export class Logger {
     colors: { ...DEFAULT_COLORS },
   };
 
-  /**
-   * 根据环境变量配置日志系统
-   */
   private constructor() {
       this.configureByEnvironment();
   }
 
   /**
-   * 获取日志系统单例
+   * @description: 获取 Logger 实例
+   * @function getInstance
+   * @returns {Logger} 返回 Logger 实例
    */
   public static getInstance(): Logger {
     if (!Logger.instance) {
@@ -73,7 +119,9 @@ export class Logger {
   }
 
   /**
-   * 根据环境变量配置日志系统
+   * @description: 在生产环境中只显示警告和错误日志，在开发环境中显示所有日志，并启用彩色和时间戳
+   * @function configureByEnvironment
+   * @returns {Logger} 返回 Logger 实例
    */
   public configureByEnvironment(): Logger {
     const isProd = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production';
@@ -97,8 +145,10 @@ export class Logger {
   }
 
   /**
-   * 设置日志级别
+   * @description: 设置日志级别
+   * @function setLevel
    * @param level 日志级别
+   * @returns {Logger} 返回 Logger 实例
    */
   public setLevel(level: LogLevel): Logger {
     this.config.level = level;
@@ -106,8 +156,10 @@ export class Logger {
   }
 
   /**
-   * 启用或禁用日志输出
-   * @param enabled 是否启用
+   * @description: 设置是否启用日志输出
+   * @function setEnabled
+   * @param enabled 是否启用日志输出
+   * @returns {Logger} 返回 Logger 实例
    */
   public setEnabled(enabled: boolean): Logger {
     this.config.enabled = enabled;
@@ -115,8 +167,10 @@ export class Logger {
   }
 
   /**
-   * 设置日志前缀
+   * @description: 设置日志前缀
+   * @function setPrefix
    * @param prefix 日志前缀
+   * @returns {Logger} 返回 Logger 实例
    */
   public setPrefix(prefix: string): Logger {
     this.config.prefix = prefix;
@@ -124,8 +178,10 @@ export class Logger {
   }
 
   /**
-   * 启用或禁用彩色输出
+   * @description: 设置是否启用彩色输出
+   * @function useColors
    * @param useColors 是否启用彩色输出
+   * @returns {Logger} 返回 Logger 实例
    */
   public useColors(useColors: boolean): Logger {
     this.config.useColors = useColors;
@@ -133,8 +189,10 @@ export class Logger {
   }
 
   /**
-   * 启用或禁用时间戳
+   * @description: 设置是否显示时间戳
+   * @function showTimestamp
    * @param show 是否显示时间戳
+   * @returns {Logger} 返回 Logger 实例
    */
   public showTimestamp(show: boolean): Logger {
     this.config.showTimestamp = show;
@@ -142,9 +200,11 @@ export class Logger {
   }
 
   /**
-   * 设置指定级别的日志颜色
+   * @description: 设置日志级别颜色
+   * @function setLevelColor
    * @param level 日志级别
    * @param colorStyle CSS 颜色样式
+   * @return {Logger} 返回 Logger 实例
    */
   public setLevelColor(level: LogLevel, colorStyle: string): Logger {
     switch (level) {
@@ -162,8 +222,10 @@ export class Logger {
   }
 
   /**
-   * 设置前缀颜色
+   * @description: 设置日志前缀颜色
+   * @function setPrefixColor
    * @param colorStyle CSS 颜色样式
+   * @return {Logger} 返回 Logger 实例
    */
   public setPrefixColor(colorStyle: string): Logger {
     this.config.colors.prefix = colorStyle;
@@ -171,8 +233,10 @@ export class Logger {
   }
 
   /**
-   * 设置时间戳颜色
+   * @description: 设置时间戳颜色
+   * @function setTimestampColor
    * @param colorStyle CSS 颜色样式
+   * @return {Logger} 返回 Logger 实例
    */
   public setTimestampColor(colorStyle: string): Logger {
     this.config.colors.timestamp = colorStyle;
@@ -180,9 +244,11 @@ export class Logger {
   }
 
   /**
-   * 记录 INFO 级别日志
+   * @description: 记录 INFO 级别日志
+   * @function info
    * @param message 日志消息
    * @param args 附加参数
+   * @return {void}
    */
   public info(message: string, ...args: any[]): void {
     if (this.shouldLog(LogLevel.INFO)) {
@@ -195,9 +261,11 @@ export class Logger {
   }
 
   /**
-   * 记录 WARN 级别日志
+   * @description: 记录 WARN 级别日志
+   * @function warn
    * @param message 日志消息
    * @param args 附加参数
+   * @return {void}
    */
   public warn(message: string, ...args: any[]): void {
     if (this.shouldLog(LogLevel.WARN)) {
@@ -210,9 +278,11 @@ export class Logger {
   }
 
   /**
-   * 记录 ERROR 级别日志
+   * @description: 记录 ERROR 级别日志
+   * @function error
    * @param message 日志消息
    * @param args 附加参数
+   * @return {void}
    */
   public error(message: string, ...args: any[]): void {
     if (this.shouldLog(LogLevel.ERROR)) {
@@ -225,10 +295,12 @@ export class Logger {
   }
 
   /**
-   * 使用颜色输出日志
+   * @description: 使用颜色输出日志
+   * @function logWithColors
    * @param level 日志级别
    * @param message 日志消息
    * @param args 附加参数
+   * @return {void}
    */
   private logWithColors(level: LogLevel, message: string, ...args: any[]): void {
     const { prefix, timestamp } = this.getParts();
@@ -265,7 +337,10 @@ export class Logger {
   }
 
   /**
-   * 获取指定级别的颜色样式
+   * @description: 获取日志级别对应的颜色样式
+   * @function getLevelColor
+   * @param {LogLevel} level 日志级别
+   * @return {string} 日志级别对应的颜色样式
    */
   private getLevelColor(level: LogLevel): string {
     switch (level) {
@@ -281,7 +356,11 @@ export class Logger {
   }
 
   /**
-   * 获取日志的各个部分（前缀、时间戳）
+   * @description: 获取日志各个部分
+   * @function getParts
+   * @property {string} prefix - 日志前缀
+   * @property {string} timestamp - 日志时间戳
+   * @returns {Object} 日志各个部分
    */
   private getParts(): { prefix: string, timestamp: string } {
     const timestamp = this.config.showTimestamp ? `[${this.getTimestamp()}]` : '';
@@ -291,8 +370,12 @@ export class Logger {
     };
   }
 
+
   /**
-   * 生成无颜色的格式化消息
+   * @description: 格式化日志消息
+   * @function formatMessage
+   * @param message 日志消息
+   * @return {string} 格式化后的日志消息
    */
   private formatMessage(message: string): string {
     const { prefix, timestamp } = this.getParts();
@@ -300,7 +383,10 @@ export class Logger {
   }
 
   /**
-   * 获取当前时间戳
+   * @description 获取当前时间戳字符串
+   * @function getTimestamp
+   * @param {string} 格式化后的时间戳
+   * @return {string} 当前时间戳字符串
    */
   private getTimestamp(): string {
     const now = new Date();
@@ -308,9 +394,9 @@ export class Logger {
   }
 
   /**
-   * 判断是否应该记录指定级别的日志
+   * @description: 判断是否应该记录日志
    * @param level 目标日志级别
-   * @returns 是否应该记录
+   * @return {boolean} 是否应该记录日志
    */
   private shouldLog(level: LogLevel): boolean {
     if (!this.config.enabled) return false;

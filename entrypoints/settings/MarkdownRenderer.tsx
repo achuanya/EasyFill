@@ -1,22 +1,34 @@
+/**
+ * @description  该组件用于渲染 Markdown 格式的文本内容为 HTML
+ * --------------------------------------------------------------------------
+ * @author       游钓四方 <haibao1027@gmail.com>
+ * @created      2025-04-13
+ * @lastModified 2025-04-13
+ * --------------------------------------------------------------------------
+ * @copyright    (c) 2025 游钓四方
+ * @license      MPL-2.0
+ * --------------------------------------------------------------------------
+ * @module       MarkdownRenderer
+ */
+
+
 import React, { useMemo } from 'react';
 import { Box } from '@mui/material';
 import { marked } from 'marked';
 
 /**
- * MarkdownRenderer 组件属性接口
- * @param content Markdown 文本内容
+ * @description MarkdownRenderer 组件属性接口
+ * @property {string} content - Markdown 文本内容
+ * @interface MarkdownRendererProps
  */
 interface MarkdownRendererProps {
   content: string;
 }
 
 /**
- * MarkdownRenderer 组件
- * @description:
- *   将 Markdown 文本解析为 HTML 并渲染到页面。
- *   使用 useMemo 缓存解析结果以提高性能。
- * @author: 游钓四方 <haibao1027@gmail.com>
- * @date: 2025-3-24
+ * @description 该组件用于渲染 Markdown 格式的文本内容为 HTML
+ * @param {string} content - Markdown 文本内容
+ * @returns {JSX.Element} 渲染后的 HTML 内容
  */
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   // 缓存解析后的 HTML

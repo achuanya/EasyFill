@@ -1,13 +1,25 @@
+/**
+ * @description  用户信息设置页面
+ * --------------------------------------------------------------------------
+ * @author       游钓四方 <haibao1027@gmail.com>
+ * @created      2025-04-13
+ * @lastModified 2025-04-13
+ * --------------------------------------------------------------------------
+ * @copyright    (c) 2025 游钓四方
+ * @license      MPL-2.0
+ * --------------------------------------------------------------------------
+ * @module       settings
+ */
+
+
 import React, { useState } from 'react';
 import { TextField, Button, Box, Typography, Snackbar } from '@mui/material';
 import { Alert } from '@mui/material';
 import { logger } from '../../utils/logger';
 
 /**
- * 用户信息设置页面
- *  - 包含昵称、邮箱、网址的输入框
- *  - 保存/更改 按钮
- *  - Snackbar 提示
+ * @description: 用户信息设置页面组件的属性类型定义
+ * @interface UserSettingsPageProps
  * @param name 昵称
  * @param email 邮箱
  * @param url 网址
@@ -16,7 +28,6 @@ import { logger } from '../../utils/logger';
  * @param onEmailChange 邮箱输入框变化时的回调
  * @param onUrlChange 网址输入框变化时的回调
  * @param onSaveOrChange 保存/更改 按钮点击时的回调
- * @returns 用户信息设置页面组件
  */
 interface UserSettingsPageProps {
   name: string;
@@ -30,13 +41,14 @@ interface UserSettingsPageProps {
 }
 
 /**
- * 用户信息设置页面组件
- * @description:
+ * @description: 
+ * 
  *   该组件用于展示和编辑用户的基本信息，包括昵称、邮箱和网址。
  *   提供保存或更改功能，并通过 Snackbar 提示用户操作结果。
- * @author:
- *   游钓四方 <haibao1027@gmail.com>
- * @date: 2025-3-24
+ * 
+ * @function UserSettingsPage
+ * @param param0 {UserSettingsPageProps}
+ * @returns {JSX.Element}
  */
 const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
   name,
@@ -53,14 +65,7 @@ const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
   const [snackbarMessage, setSnackbarMessage] = useState(''); // Snackbar 显示的消息内容
   const [snackbarSeverity, setSnackbarSeverity] = useState<'error' | 'info' | 'success' | 'warning'>('error'); // Snackbar 的类型
 
-  /**
-   * 处理保存或更改按钮点击事件
-   * @description:
-   *   验证用户输入的昵称和邮箱是否有效，并根据结果显示提示信息。
-   *   如果验证通过，则调用父组件传递的 onSaveOrChange 方法。
-   * @author: 游钓四方 <haibao1027@gmail.com>
-   * @date: 2025-3-24
-   */
+  // 处理保存或更改按钮点击事件
   const handleSaveOrChange = () => {
     logger.info('开始验证用户信息', { name, email, url });
     

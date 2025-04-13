@@ -1,3 +1,17 @@
+/**
+ * @description  设置页面组件
+ * --------------------------------------------------------------------------
+ * @author       游钓四方 <haibao1027@gmail.com>
+ * @created      2025-04-13
+ * @lastModified 2025-04-13
+ * --------------------------------------------------------------------------
+ * @copyright    (c) 2025 游钓四方
+ * @license      MPL-2.0
+ * --------------------------------------------------------------------------
+ * @module       SettingsPage
+ */
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Tabs, Tab } from '@mui/material';
 import { AccountCircle, Extension, Info, Article, Chat, Policy } from '@mui/icons-material';
@@ -9,15 +23,8 @@ import GlobalScrollbarStyles from './GlobalScrollbarStyles';
 import { encryptData, decryptData } from '../../utils/cryptoUtils';
 import { logger } from '../../utils/logger';
 
-/**
- * SettingsPage 组件
- * @description:
- *   整个“设置”界面的根组件，包含用户信息、推荐插件和关于作者三个选项卡。
- *   通过 chrome.storage 同步用户数据，并支持 Markdown 内容的加载和渲染。
- * @author: 游钓四方 <haibao1027@gmail.com>
- * @date: 2025-3-24
- * @param 无
- */
+// 设置页面组件
+// 该组件用于显示用户的设置选项，包括个人信息、推荐插件、关于作者、更新日志和隐私权政策等
 const SettingsPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState(0); // 当前选中的选项卡索引
 

@@ -1,13 +1,26 @@
 /**
- * @description: 定义内容脚本，处理页面上的自动填充逻辑。
- * @author: 游钓四方 <haibao1027@gmail.com>
- * @date: 2025-3-24
+ * @description  自动填充
+ * --------------------------------------------------------------------------
+ * @author       游钓四方 <haibao1027@gmail.com>
+ * @created      2025-04-13
+ * @lastModified 2025-04-13
+ * --------------------------------------------------------------------------
+ * @copyright    (c) 2025 游钓四方
+ * @license      MPL-2.0
+ * --------------------------------------------------------------------------
+ * @module       content
  */
+
 
 import { decryptData } from '../utils/cryptoUtils';
 import { logger } from '../utils/logger';
+import { getKeywordSets } from '../utils/keywordService';
 
-// 自动启用输入框的自动完成功能
+/**
+ * @description: 启用浏览器的自动完成功能，设置输入框的 autocomplete 属性为 "on"。
+ * @function handleAutocomplete
+ * @returns {void} 无返回值
+ */
 function handleAutocomplete() {
   try {
     const inputElements = document.querySelectorAll('input, textarea');
@@ -26,26 +39,18 @@ function handleAutocomplete() {
   }
 }
 
-// 定义关键字集合，用于匹配输入框的 name 属性
-const keywordSets = {
-  name: new Set([
-    "name", "author", "display_name", "full-name", "username", "nick", "displayname",
-    "first-name", "last-name", "real-name", "given-name", "family-name", "alias",
-    "display_name", "昵称", "namn", "wc_name"
-  ]),
-  email: new Set([
-    "email", "mail", "contact", "emailaddress", "mailaddress", "useremail", "电子邮件"
-  ]),
-  url: new Set([
-    "url", "link", "website", "homepage", "site", "web", "address", "profile", "网站", "wc_website"
-  ])
-};
-
-// 填充输入框内容
-function fillInputFields() {
+/**
+ * @description: 填充表单信息，使用存储的用户数据填充输入框和文本区域。
+ * @function fillInputFields
+ * @returns {Promise<void>} 返回一个 Promise，表示填充操作的完成状态。
+ */
+async function fillInputFields() {
   logger.info('开始填充表单信息');
   
   try {
+    // 获取关键字集合
+    const keywordSets = await getKeywordSets();
+
     chrome.storage.sync.get(['name', 'email', 'url'], async (data) => {
       if (!data.name && !data.email && !data.url) {
         logger.warn('未找到用户数据，表单未填充');
@@ -70,16 +75,22 @@ function fillInputFields() {
         inputs.forEach((input) => {
           const typeAttr = (input.getAttribute("type") || "").toLowerCase();
           const nameAttr = (input.getAttribute("name") || "").toLowerCase();
-          const currentValue = input.value;
+          const idAttr = (input.getAttribute("id") || "").toLowerCase();
+          const placeholderAttr = (input.getAttribute("placeholder") || "").toLowerCase();
+          const currentValue = (input as HTMLInputElement).value;
+
           let valueToSet = ""; // 初始化要设置的值
 
           // 根据关键字集合和属性匹配，确定要填充的值
-          if (keywordSets.url.has(nameAttr) || (typeAttr === "url" && url)) {
-            valueToSet = url || valueToSet;
-          } else if (keywordSets.email.has(nameAttr) || (typeAttr === "email" && email)) {
-            valueToSet = email || valueToSet;
-          } else if (keywordSets.name.has(nameAttr) && name) {
-            valueToSet = name || valueToSet;
+          if (matchKeywords(keywordSets.url, [nameAttr, idAttr, placeholderAttr]) || 
+              (typeAttr === "url" && url)) {
+            valueToSet = url;
+          } else if (matchKeywords(keywordSets.email, [nameAttr, idAttr, placeholderAttr]) || 
+                     (typeAttr === "email" && email)) {
+            valueToSet = email;
+          } else if (matchKeywords(keywordSets.name, [nameAttr, idAttr, placeholderAttr]) && 
+                    name) {
+            valueToSet = name;
           }
 
           // 过滤无关字段
@@ -87,7 +98,7 @@ function fillInputFields() {
 
           // 输出 JSON 格式日志
           const logEntry = {
-            name: nameAttr || typeAttr,
+            name: nameAttr || idAttr || typeAttr,
             type: typeAttr,
             currentValue,
             valueToSet,
@@ -98,6 +109,13 @@ function fillInputFields() {
           if (logEntry.action === "FILL") {
             logger.info('填充表单字段', JSON.stringify(logEntry));
             (input as HTMLInputElement).value = valueToSet;
+            
+            // 触发 input 和 change 事件，以便表单验证能够响应
+            const inputEvent = new Event('input', { bubbles: true });
+            const changeEvent = new Event('change', { bubbles: true });
+            input.dispatchEvent(inputEvent);
+            input.dispatchEvent(changeEvent);
+            
             fieldsFound++;
           }
         });
@@ -112,18 +130,22 @@ function fillInputFields() {
   }
 }
 
-// 清空输入框内容
-function clearInputFields() {
-  const inputs = document.querySelectorAll('input');
-  inputs.forEach((input) => {
-    const typeAttr = (input.getAttribute("type") || "").toLowerCase();
-    if (typeAttr === "text" || typeAttr === "email" || typeAttr === "url") {
-      (input as HTMLInputElement).value = "";
+/**
+ * @description: 检查输入框的属性是否与关键字集合匹配。
+ * @function matchKeywords
+ * @param keywordSet 关键字集合
+ * @param attributes 属性集合
+ * @return {boolean} 如果匹配则返回 true，否则返回 false
+ */
+function matchKeywords(keywordSet: Set<string>, attributes: string[]): boolean {
+  for (const attr of attributes) {
+    if (attr && keywordSet.has(attr)) {
+      return true;
     }
-  });
+  }
+  return false;
 }
 
-// 定义内容脚本的入口
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
@@ -139,16 +161,36 @@ export default defineContentScript({
 
     // 监听DOM变化，处理动态加载的表单
     const observer = new MutationObserver((mutations) => {
-      logger.info('检测到DOM变化，重新尝试填充表单');
-      handleAutocomplete();
-      fillInputFields();
+      // 检查是否添加了新的表单元素
+      let formElementAdded = false;
+      
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          for (const node of Array.from(mutation.addedNodes)) {
+            if (node instanceof HTMLElement) {
+              const inputs = node.querySelectorAll('input, textarea');
+              if (inputs.length > 0) {
+                formElementAdded = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (formElementAdded) break;
+      }
+      
+      // 只有添加了新表单元素时才触发填充
+      if (formElementAdded) {
+        logger.info('检测到新表单元素，尝试填充');
+        handleAutocomplete();
+        fillInputFields();
+      }
     });
     
     observer.observe(document.body, { 
       childList: true, 
       subtree: true 
     });
-    
-    logger.info('表单变化监听器已启动');
   }
 });
