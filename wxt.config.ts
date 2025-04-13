@@ -16,6 +16,7 @@ export default defineConfig({
     permissions: [
       'storage',
       'activeTab',
+      'notifications',
     ],
     action: {
       default_icon: {

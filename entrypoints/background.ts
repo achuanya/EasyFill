@@ -7,20 +7,16 @@
 import { logger } from '../utils/logger';
 
 export default defineBackground(() => {
-  chrome.action.onClicked.addListener(() => {
-    logger.info('用户点击扩展图标，打开设置页面');
+  logger.info('脚本已初始化');
+  
+  chrome.action.onClicked.addListener((tab) => {
+    logger.info('用户点击扩展图标，打开设置页面', { tabId: tab.id });
     chrome.tabs.create({
       url: chrome.runtime.getURL('settings.html'),
+    }).then(newTab => {
+      logger.info('设置页面已打开', { newTabId: newTab.id });
+    }).catch(error => {
+      logger.error('打开设置页面失败', error);
     });
-  });
-  
-  // 监听扩展安装和更新事件
-  chrome.runtime.onInstalled.addListener((details) => {
-    if (details.reason === 'install') {
-      logger.info('扩展首次安装');
-    } else if (details.reason === 'update') {
-      const version = chrome.runtime.getManifest().version;
-      logger.info(`扩展已更新到版本 ${version}`);
-    }
   });
 });
