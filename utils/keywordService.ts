@@ -11,7 +11,6 @@
  * @module       utils/keywordService
  */
 
-
 import { logger } from './logger';
 
 // 关键字集合的类型定义
@@ -47,7 +46,6 @@ function convertJsonToKeywordSets(jsonData: Record<string, string[]>): KeywordSe
   return result as KeywordSets;
 }
 
-
 /**
  * @description: 获取存储的关键字URL
  * @function getKeywordsUrl
@@ -62,23 +60,43 @@ export async function getKeywordsUrl(): Promise<string> {
 }
 
 /**
- * 从本地文件加载默认关键字集合
- */
-
-/**
  * @description 加载本地关键字集合，优先使用本地文件，如果加载失败则使用内置备份
  * @function loadDefaultKeywordSets
  * @returns {Promise<KeywordSets>} 返回一个包含关键字集合的Promise对象
  */
 async function loadDefaultKeywordSets(): Promise<KeywordSets> {
-  const response = await fetch(chrome.runtime.getURL('data/keywords.json'));
-  if (!response.ok) {
-    logger.error(`加载本地关键字文件失败: ${response.status}`);
+  try {
+    logger.info('尝试加载本地关键字文件');
+    
+    // 通过后台脚本获取本地关键字
+    const jsonData = await new Promise<Record<string, string[]>>((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        { action: 'fetchLocalKeywords' },
+        response => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          
+          if (response && response.success) {
+            resolve(response.data);
+          } else {
+            reject(new Error(response?.error || '获取本地关键字失败'));
+          }
+        }
+      );
+    });
+    
+    logger.info('已加载本地关键字文件', { data: jsonData });
+    return convertJsonToKeywordSets(jsonData);
+  } catch (error) {
+    logger.error('加载本地关键字文件发生异常', error);
+    return {
+      name: new Set<string>(),
+      email: new Set<string>(),
+      url: new Set<string>()
+    };
   }
-  
-  const jsonData = await response.json();
-  logger.info('已加载本地关键字文件');
-  return convertJsonToKeywordSets(jsonData);
 }
 
 /**
@@ -146,15 +164,14 @@ async function saveKeywordSetsToCache(data: Record<string, string[]>): Promise<v
 }
 
 /**
+ * @description 从远程获取关键字集合，支持重试和指数退避
  * @function fetchKeywordSetsFromRemote
- * @description 从远程获取关键字集合
  * @returns {Promise<KeywordSets | null>} 返回关键字集合或null
  */
 async function fetchKeywordSetsFromRemote(): Promise<KeywordSets | null> {
   const MAX_RETRIES = 3;             // 最大重试次数
   const INITIAL_DELAY = 1000;        // 初始延迟时间（毫秒）
   const MAX_DELAY = 10000;           // 最大延迟时间（毫秒）
-  const TIMEOUT = 5000;              // 超时时间（毫秒）
   const JITTER_FACTOR = 0.25;        // 抖动因子（0-1之间）
   
   // 判断是否应该重试的错误类型
@@ -183,6 +200,27 @@ async function fetchKeywordSetsFromRemote(): Promise<KeywordSets | null> {
     return exponentialDelay + jitter;
   }
   
+  // 通过后台脚本获取关键字
+  async function fetchThroughBackground(url: string): Promise<Record<string, string[]>> {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        { action: 'fetchRemoteKeywords', url },
+        response => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          
+          if (response && response.success) {
+            resolve(response.data);
+          } else {
+            reject(new Error(response?.error || '获取关键字失败'));
+          }
+        }
+      );
+    });
+  }
+  
   let retryCount = 0;
   let lastError: any;
 
@@ -199,27 +237,8 @@ async function fetchKeywordSetsFromRemote(): Promise<KeywordSets | null> {
         logger.info('正在从远程获取关键字数据', { url: keywordsUrl });
       }
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
-      
-      const response = await fetch(keywordsUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        },
-        cache: 'no-cache',
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const error = new Error(`HTTP错误: ${response.status}`);
-        (error as any).status = response.status;
-        throw error;
-      }
-      
-      const jsonData = await response.json();
+      // 通过后台脚本获取数据，避免CORS问题
+      const jsonData = await fetchThroughBackground(keywordsUrl);
       
       if (!jsonData.name || !jsonData.email || !jsonData.url) {
         throw new Error('关键字数据格式不正确');

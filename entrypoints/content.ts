@@ -62,71 +62,95 @@ async function fillInputFields() {
         const email = data.email ? await decryptData(data.email) : '';
         const url = data.url ? await decryptData(data.url) : '';
         
-        // 如果昵称和邮箱为空，则不执行填充逻辑
-        if (!name || !email) {
-          logger.warn("缺少必填项：昵称或邮箱，跳过填充");
-          return;
-        }
-
-        const inputs = document.querySelectorAll("input, textarea");
-
-        let fieldsFound = 0;
-
-        inputs.forEach((input) => {
-          const typeAttr = (input.getAttribute("type") || "").toLowerCase();
+        logger.info('已解密用户数据，准备填充表单');
+        
+        // 获取页面上的所有输入框和文本区域
+        const inputElements = document.querySelectorAll('input, textarea');
+        
+        let filledCount = 0;
+        
+        // 遍历所有输入元素
+        inputElements.forEach((input: HTMLInputElement | HTMLTextAreaElement) => {
+          // 跳过隐藏字段、已填充字段、密码字段和提交按钮
+          if (input.type === 'hidden' || 
+              input.type === 'password' || 
+              input.type === 'submit' || 
+              input.type === 'button' ||
+              input.value.trim()) {
+            return;
+          }
+          
           const nameAttr = (input.getAttribute("name") || "").toLowerCase();
           const idAttr = (input.getAttribute("id") || "").toLowerCase();
           const placeholderAttr = (input.getAttribute("placeholder") || "").toLowerCase();
-          const currentValue = (input as HTMLInputElement).value;
-
-          let valueToSet = ""; // 初始化要设置的值
-
-          // 根据关键字集合和属性匹配，确定要填充的值
-          if (matchKeywords(keywordSets.url, [nameAttr, idAttr, placeholderAttr]) || 
-              (typeAttr === "url" && url)) {
-            valueToSet = url;
-          } else if (matchKeywords(keywordSets.email, [nameAttr, idAttr, placeholderAttr]) || 
-                     (typeAttr === "email" && email)) {
-            valueToSet = email;
-          } else if (matchKeywords(keywordSets.name, [nameAttr, idAttr, placeholderAttr]) && 
-                    name) {
-            valueToSet = name;
-          }
-
-          // 过滤无关字段
-          if (!valueToSet) return;
-
-          // 输出 JSON 格式日志
-          const logEntry = {
-            name: nameAttr || idAttr || typeAttr,
-            type: typeAttr,
-            currentValue,
-            valueToSet,
-            action: currentValue === valueToSet ? "SKIP" : "FILL",
-          };
-
-          // 执行填充操作
-          if (logEntry.action === "FILL") {
-            logger.info('填充表单字段', JSON.stringify(logEntry));
-            (input as HTMLInputElement).value = valueToSet;
+          const typeAttr = (input.getAttribute("type") || "").toLowerCase();
+          const classAttr = (input.getAttribute("class") || "").toLowerCase();
+          
+          // 获取表单上下文
+          const formContext = getFormContext(input);
+          
+          // 收集所有可能的属性
+          const attributes = [nameAttr, idAttr, placeholderAttr, classAttr];
+          
+          // 使用智能匹配
+          const matchResult = smartMatchKeywords(keywordSets, attributes, {
+            enableFuzzy: true,
+            enableSubstring: true,
+            enableContextual: true,
+            formContext
+          });
+          
+          // 根据匹配结果确定要填充的值
+          let valueToSet = ""; 
+          
+          if (matchResult.matched) {
+            switch (matchResult.fieldType) {
+              case 'name':
+                valueToSet = name;
+                break;
+              case 'email':
+                valueToSet = email;
+                break;
+              case 'url':
+                valueToSet = url;
+                break;
+            }
             
-            // 触发 input 和 change 事件，以便表单验证能够响应
-            const inputEvent = new Event('input', { bubbles: true });
-            const changeEvent = new Event('change', { bubbles: true });
-            input.dispatchEvent(inputEvent);
-            input.dispatchEvent(changeEvent);
-            
-            fieldsFound++;
+            // 仅当有值要设置时才填充
+            if (valueToSet) {
+              input.value = valueToSet;
+              filledCount++;
+              
+              // 触发input事件以通知SPA框架数据已改变
+              const event = new Event('input', { bubbles: true });
+              input.dispatchEvent(event);
+              
+              logger.info(`已填充 ${matchResult.fieldType} 字段 (${input.name || input.id || 'unnamed'})`, {
+                confidence: matchResult.confidence.toFixed(2),
+                method: matchResult.method
+              });
+            }
+          } else {
+            // 尝试使用input元素的type属性进行匹配
+            if (typeAttr === "email" && email) {
+              input.value = email;
+              filledCount++;
+              logger.info(`已通过类型属性填充邮箱字段 (${input.name || input.id || 'unnamed'})`);
+            } else if (typeAttr === "url" && url) {
+              input.value = url;
+              filledCount++;
+              logger.info(`已通过类型属性填充URL字段 (${input.name || input.id || 'unnamed'})`);
+            }
           }
         });
-
-        logger.info(`表单填充完成，成功填充 ${fieldsFound} 个字段`);
+        
+        logger.info(`表单填充完成，共填充了 ${filledCount} 个字段`);
       } catch (error) {
-        logger.error('解密或填充表单数据时出错', error);
+        logger.error('填充表单时发生错误', error);
       }
     });
   } catch (error) {
-    logger.error('获取存储数据时出错', error);
+    logger.error('获取关键字集合失败', error);
   }
 }
 

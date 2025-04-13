@@ -1,0 +1,15 @@
+{
+  "name": [
+    "name", "author", "display_name", "full-name", "username", "nick", "displayname",
+    "first-name", "last-name", "real-name", "given-name", "family-name", "alias", "昵称", 
+    "namn", "wc_name", "nickname","inpName"
+  ],
+  "email": [
+    "email", "mail", "contact", "emailaddress", "mailaddress", "useremail", "电子邮件","inpEmail",
+    "wc_email"
+  ],
+  "url": [
+    "url", "link", "website", "homepage", "site", "web", "address", "profile", "网站", "wc_website",
+    "inpHomePage"
+  ]
+}
