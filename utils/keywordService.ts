@@ -151,43 +151,118 @@ async function saveKeywordSetsToCache(data: Record<string, string[]>): Promise<v
  * @returns {Promise<KeywordSets | null>} 返回关键字集合或null
  */
 async function fetchKeywordSetsFromRemote(): Promise<KeywordSets | null> {
-  try {
-    const keywordsUrl = await getKeywordsUrl();
-    logger.info('正在从远程获取关键字集合', { url: keywordsUrl });
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
-    
-    const response = await fetch(keywordsUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
-      },
-      cache: 'no-cache',
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP错误: ${response.status}`);
-    }
-    
-    const jsonData = await response.json();
-    
-    if (!jsonData.name || !jsonData.email || !jsonData.url) {
-      throw new Error('关键字数据格式不正确');
-    }
-    
-    // 缓存获取的数据
-    await saveKeywordSetsToCache(jsonData);
-    
-    logger.info('远程关键字获取成功并已缓存', { data: jsonData });
-    return convertJsonToKeywordSets(jsonData);
-  } catch (error) {
-    logger.error('获取远程关键字集合失败', error);
-    return null;
+  const MAX_RETRIES = 3;             // 最大重试次数
+  const INITIAL_DELAY = 1000;        // 初始延迟时间（毫秒）
+  const MAX_DELAY = 10000;           // 最大延迟时间（毫秒）
+  const TIMEOUT = 5000;              // 超时时间（毫秒）
+  const JITTER_FACTOR = 0.25;        // 抖动因子（0-1之间）
+  
+  // 判断是否应该重试的错误类型
+  function isRetryableError(error: any): boolean {
+    // 网络错误、超时错误、服务器错误（5xx）可以重试
+    return (
+      error.name === 'AbortError' || // 超时
+      error.message.includes('network') || // 网络错误
+      (error.status >= 500 && error.status < 600) || // 服务器错误
+      error.message.includes('fetch') || // fetch相关错误
+      error.message.includes('timeout') // 超时相关错误
+    );
   }
+  
+  // 计算下一次重试延迟（指数退避 + 抖动）
+  function getBackoffDelay(attempt: number): number {
+    // 基础延迟使用指数退避
+    const exponentialDelay = Math.min(
+      MAX_DELAY,
+      INITIAL_DELAY * Math.pow(2, attempt)
+    );
+    
+    // 添加抖动以避免请求同步
+    const jitter = exponentialDelay * JITTER_FACTOR * Math.random();
+    
+    return exponentialDelay + jitter;
+  }
+  
+  let retryCount = 0;
+  let lastError: any;
+
+  while (retryCount <= MAX_RETRIES) {
+    try {
+      const keywordsUrl = await getKeywordsUrl();
+      
+      if (retryCount > 0) {
+        logger.info(`正在进行第 ${retryCount} 次重试获取关键字数据`, { 
+          url: keywordsUrl,
+          lastError: lastError?.message || '未知错误'
+        });
+      } else {
+        logger.info('正在从远程获取关键字数据', { url: keywordsUrl });
+      }
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+      
+      const response = await fetch(keywordsUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        },
+        cache: 'no-cache',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const error = new Error(`HTTP错误: ${response.status}`);
+        (error as any).status = response.status;
+        throw error;
+      }
+      
+      const jsonData = await response.json();
+      
+      if (!jsonData.name || !jsonData.email || !jsonData.url) {
+        throw new Error('关键字数据格式不正确');
+      }
+      
+      // 缓存获取的数据
+      await saveKeywordSetsToCache(jsonData);
+      
+      logger.info('远程关键字获取成功并已缓存', { 
+        retryCount,
+        data: jsonData
+      });
+      return convertJsonToKeywordSets(jsonData);
+      
+    } catch (error: any) {
+      lastError = error;
+      const shouldRetry = isRetryableError(error) && retryCount < MAX_RETRIES;
+      
+      if (shouldRetry) {
+        retryCount++;
+        const delay = getBackoffDelay(retryCount);
+        
+        logger.warn(`获取关键字失败，将在 ${Math.round(delay / 1000)} 秒后重试 (${retryCount}/${MAX_RETRIES})`, {
+          error: error.message,
+          errorName: error.name,
+          retryDelay: delay
+        });
+        
+        // 等待一段时间后重试
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // 如果不应该重试，或者已达到最大重试次数，记录错误并返回null
+      logger.error('获取远程关键字集合失败', {
+        error,
+        retriesAttempted: retryCount
+      });
+      return null;
+    }
+  }
+  
+  return null; // 达到最大重试次数后仍然失败
 }
 
 /**
