@@ -31,13 +31,13 @@ const keywordSets = {
   name: new Set([
     "name", "author", "display_name", "full-name", "username", "nick", "displayname",
     "first-name", "last-name", "real-name", "given-name", "family-name", "alias",
-    "display_name", "昵称", "namn"
+    "display_name", "昵称", "namn", "wc_name"
   ]),
   email: new Set([
     "email", "mail", "contact", "emailaddress", "mailaddress", "useremail", "电子邮件"
   ]),
   url: new Set([
-    "url", "link", "website", "homepage", "site", "web", "address", "profile", "网站"
+    "url", "link", "website", "homepage", "site", "web", "address", "profile", "网站", "wc_website"
   ])
 };
 
