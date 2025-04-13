@@ -8,7 +8,7 @@
     
     使用 WXT 框架实现高效开发，支持智能表单填充、数据加密存储功能。  
 
-- Chrome 应用商店：[EasyFill]()
+- Chrome 应用商店：[EasyFill](https://chromewebstore.google.com/detail/eamchegekphehbmebccbapnihegngobm?utm_source=item-share-cb)
 - GitHub 仓库：[EasyFill GitHub](https://github.com/achuanya/EasyFill)
 
 此插件 **永久免费**，并已通过 [Mozilla Public License Version 2.0](https://github.com/achuanya/EasyFill/blob/main/LICENSE) 开源。
