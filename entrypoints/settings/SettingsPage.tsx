@@ -14,10 +14,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Tabs, Tab } from '@mui/material';
-import { AccountCircle, Extension, Info, Article, Chat, Policy } from '@mui/icons-material';
+import { AccountCircle, Extension, Info, Article, Chat, Policy, Sync } from '@mui/icons-material';
 import { marked } from 'marked';
 import GravatarAvatar from './GravatarAvatar';
 import UserSettingsPage from './UserSettingsPage';
+import SyncSettingsPage from './SyncSettings';
 import MarkdownRenderer from './MarkdownRenderer';
 import GlobalScrollbarStyles from './GlobalScrollbarStyles';
 import { encryptData, decryptData } from '../../utils/cryptoUtils';
@@ -169,6 +170,7 @@ const SettingsPage: React.FC = () => {
           <GravatarAvatar name={name} email={email} />
           <Tabs value={selectedTab} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tab label="我的信息" icon={<AccountCircle />} />
+            <Tab label="同步设置" icon={<Sync />} />
             <Tab label="推荐插件" icon={<Extension />} />
             <Tab label="关于作者" icon={<Info />} />
             <Tab label="更新日志" icon={<Article />} />
@@ -200,17 +202,20 @@ const SettingsPage: React.FC = () => {
             />
           )}
 
+          {/* 同步设置 */}
+          {selectedTab === 1 && <SyncSettingsPage />}
+
           {/* 推荐插件 */}
-          {selectedTab === 1 && <MarkdownRenderer content={recommendedPluginsContent} />}
+          {selectedTab === 2 && <MarkdownRenderer content={recommendedPluginsContent} />}
 
           {/* 关于作者 */}
-          {selectedTab === 2 && <MarkdownRenderer content={aboutAuthorContent} />}
+          {selectedTab === 3 && <MarkdownRenderer content={aboutAuthorContent} />}
 
           {/* 更新日志 */}
-          {selectedTab === 3 && <MarkdownRenderer content={updateLogContent} />}
+          {selectedTab === 4 && <MarkdownRenderer content={updateLogContent} />}
 
           {/* 隐私权政策 */}
-          {selectedTab === 4 && <MarkdownRenderer content={privacyPolicyContent} />}
+          {selectedTab === 5 && <MarkdownRenderer content={privacyPolicyContent} />}
 
           <Box sx={{
             display: 'flex',

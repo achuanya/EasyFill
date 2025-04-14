@@ -145,7 +145,7 @@ async function getKeywordSetsFromCache(): Promise<KeywordSets | null> {
  * @param {Record<string, string[]>} data 关键字集合数据
  * @return {Promise<void>} 返回一个Promise对象，表示保存操作完成
  */
-async function saveKeywordSetsToCache(data: Record<string, string[]>): Promise<void> {
+export async function saveKeywordSetsToCache(data: Record<string, string[]>): Promise<void> {
   try {
     const cacheData = {
       data,
@@ -160,6 +160,7 @@ async function saveKeywordSetsToCache(data: Record<string, string[]>): Promise<v
     });
   } catch (error) {
     logger.error('缓存关键字集合失败', error);
+    throw error; // 添加错误抛出
   }
 }
 
@@ -178,17 +179,16 @@ async function fetchKeywordSetsFromRemote(): Promise<KeywordSets | null> {
   function isRetryableError(error: any): boolean {
     // 网络错误、超时错误、服务器错误（5xx）可以重试
     return (
-      error.name === 'AbortError' || // 超时
-      error.message.includes('network') || // 网络错误
+      error.name === 'AbortError' ||                 // 超时
+      error.message.includes('network') ||           // 网络错误
       (error.status >= 500 && error.status < 600) || // 服务器错误
-      error.message.includes('fetch') || // fetch相关错误
-      error.message.includes('timeout') // 超时相关错误
+      error.message.includes('fetch') ||             // fetch相关错误
+      error.message.includes('timeout')              // 超时相关错误
     );
   }
   
   // 计算下一次重试延迟（指数退避 + 抖动）
   function getBackoffDelay(attempt: number): number {
-    // 基础延迟使用指数退避
     const exponentialDelay = Math.min(
       MAX_DELAY,
       INITIAL_DELAY * Math.pow(2, attempt)
@@ -200,7 +200,12 @@ async function fetchKeywordSetsFromRemote(): Promise<KeywordSets | null> {
     return exponentialDelay + jitter;
   }
   
-  // 通过后台脚本获取关键字
+  /**
+   * @description 通过后台脚本获取远程关键字数据
+   * @function fetchThroughBackground
+   * @param url 远程URL
+   * @returns {Promise<Record<string, string[]>>} 返回关键字数据
+   */
   async function fetchThroughBackground(url: string): Promise<Record<string, string[]>> {
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage(
@@ -235,6 +240,32 @@ async function fetchKeywordSetsFromRemote(): Promise<KeywordSets | null> {
         });
       } else {
         logger.info('正在从远程获取关键字数据', { url: keywordsUrl });
+      }
+      
+      // 获取ETag和Last-Modified
+      let etag = '';
+      let lastModified = '';
+      
+      await new Promise<void>(resolve => {
+        chrome.storage.local.get([
+          'easyfill_keywords_etag',
+          'easyfill_keywords_last_modified'
+        ], (result) => {
+          etag = result['easyfill_keywords_etag'] || '';
+          lastModified = result['easyfill_keywords_last_modified'] || '';
+          resolve();
+        });
+      });
+      
+      // 构建请求头，使用条件请求减少带宽使用
+      const headers: Record<string, string> = {};
+      
+      if (etag) {
+        headers['If-None-Match'] = etag;
+      }
+      
+      if (lastModified) {
+        headers['If-Modified-Since'] = lastModified;
       }
       
       // 通过后台脚本获取数据，避免CORS问题
