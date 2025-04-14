@@ -23,9 +23,7 @@ export interface KeywordSets {
 
 // 缓存配置
 const CACHE_KEY = 'easyfill_keywords_cache';
-const CACHE_TTL = 24 * 60 * 60 * 1000;
-const KEYWORDS_URL_KEY = 'easyfill_keywords_url';
-const DEFAULT_KEYWORDS_URL = 'https://cos.lhasa.icu/EasyFill/keywords.json';
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 小时
 
 // 默认的关键字集合（备用）
 let defaultKeywordSets: KeywordSets | null = null;
@@ -38,25 +36,18 @@ let defaultKeywordSets: KeywordSets | null = null;
  */
 function convertJsonToKeywordSets(jsonData: Record<string, string[]>): KeywordSets {
   const result: Record<string, Set<string>> = {};
-  
-  for (const key in jsonData) {
-    result[key] = new Set(jsonData[key]);
-  }
-  
-  return result as KeywordSets;
-}
 
-/**
- * @description: 获取存储的关键字URL
- * @function getKeywordsUrl
- * @returns {Promise<string>} 返回存储的关键字URL，如果没有存储则返回默认值
- */
-export async function getKeywordsUrl(): Promise<string> {
-  return new Promise<string>((resolve) => {
-    chrome.storage.sync.get([KEYWORDS_URL_KEY], (result) => {
-      resolve(result[KEYWORDS_URL_KEY] || DEFAULT_KEYWORDS_URL);
-    });
-  });
+  for (const key in jsonData) {
+    // 确保 jsonData[key] 是一个数组
+    if (Array.isArray(jsonData[key])) {
+      result[key] = new Set(jsonData[key]);
+    } else {
+      logger.warn(`关键字数据格式警告：键 "${key}" 的值不是数组，已跳过。`, { value: jsonData[key] });
+      result[key] = new Set(); // 创建一个空 Set 以保持类型一致性
+    }
+  }
+
+  return result as KeywordSets;
 }
 
 /**
@@ -67,18 +58,18 @@ export async function getKeywordsUrl(): Promise<string> {
 async function loadDefaultKeywordSets(): Promise<KeywordSets> {
   try {
     logger.info('尝试加载本地关键字文件');
-    
+
     // 通过后台脚本获取本地关键字
     const jsonData = await new Promise<Record<string, string[]>>((resolve, reject) => {
       chrome.runtime.sendMessage(
         { action: 'fetchLocalKeywords' },
         response => {
           if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
+            reject(new Error(chrome.runtime.lastError.message || '与后台脚本通信失败'));
             return;
           }
-          
-          if (response && response.success) {
+
+          if (response && response.success && response.data) {
             resolve(response.data);
           } else {
             reject(new Error(response?.error || '获取本地关键字失败'));
@@ -86,11 +77,12 @@ async function loadDefaultKeywordSets(): Promise<KeywordSets> {
         }
       );
     });
-    
-    logger.info('已加载本地关键字文件', { data: jsonData });
+
+    logger.info('已加载本地关键字文件');
     return convertJsonToKeywordSets(jsonData);
   } catch (error) {
-    logger.error('加载本地关键字文件发生异常', error);
+    logger.error('加载本地关键字文件失败，返回空集合', error);
+    // 返回一个空的结构，而不是抛出错误，确保后续逻辑可以继续
     return {
       name: new Set<string>(),
       email: new Set<string>(),
@@ -100,28 +92,41 @@ async function loadDefaultKeywordSets(): Promise<KeywordSets> {
 }
 
 /**
- * @description 从缓存中获取关键字集合，如果缓存过期则返回null
+ * @description 从缓存中获取原始关键字数据，如果缓存过期则返回null
  * @function getKeywordSetsFromCache
- * @returns {Promise<KeywordSets | null>} 返回关键字集合或null
+ * @returns {Promise<Record<string, string[]> | null>} 返回原始关键字数据或null
  */
-async function getKeywordSetsFromCache(): Promise<KeywordSets | null> {
+export async function getKeywordSetsFromCache(): Promise<Record<string, string[]> | null> {
   try {
-    return new Promise<KeywordSets | null>((resolve) => {
+    return new Promise<Record<string, string[]> | null>((resolve) => {
       chrome.storage.local.get([CACHE_KEY], (result) => {
+        if (chrome.runtime.lastError) {
+          logger.error('读取关键字缓存时发生错误', chrome.runtime.lastError);
+          resolve(null);
+          return;
+        }
+
         if (result && result[CACHE_KEY]) {
           const { data, timestamp } = result[CACHE_KEY];
           const now = Date.now();
-          
+
           // 检查缓存是否过期
           if (now - timestamp < CACHE_TTL) {
-            logger.info('从缓存加载关键字集合', { 
-              source: 'cache', 
+            logger.info('从缓存加载关键字集合', {
+              source: 'cache',
               cacheAge: Math.floor((now - timestamp) / 1000) + '秒',
               validFor: Math.floor((CACHE_TTL - (now - timestamp)) / 1000) + '秒'
             });
-            resolve(convertJsonToKeywordSets(data));
+            // 确保 data 存在且是对象
+            if (data && typeof data === 'object') {
+              // 直接返回原始数据，不再调用 convertJsonToKeywordSets
+              resolve(data);
+            } else {
+              logger.warn('缓存数据格式无效，视为无缓存', { cachedData: data });
+              resolve(null);
+            }
           } else {
-            logger.info('缓存已过期', { 
+            logger.info('缓存已过期', {
               age: Math.floor((now - timestamp) / 1000) + '秒',
               ttl: Math.floor(CACHE_TTL / 1000) + '秒'
             });
@@ -147,25 +152,63 @@ async function getKeywordSetsFromCache(): Promise<KeywordSets | null> {
  */
 export async function saveKeywordSetsToCache(data: Record<string, string[]>): Promise<void> {
   try {
+    // 基本的数据验证
+    if (!data || typeof data !== 'object' || !data.name || !data.email || !data.url) {
+       logger.error('尝试缓存无效的关键字数据', { data });
+       throw new Error('无效的关键字数据格式，无法缓存');
+    }
+
     const cacheData = {
       data,
       timestamp: Date.now()
     };
-    
-    return new Promise<void>((resolve) => {
+
+    return new Promise<void>((resolve, reject) => { // 添加 reject
       chrome.storage.local.set({ [CACHE_KEY]: cacheData }, () => {
-        logger.info('关键字集合已缓存', { cacheData });
-        resolve();
+        if (chrome.runtime.lastError) {
+          logger.error('缓存关键字集合失败', chrome.runtime.lastError);
+          reject(new Error(chrome.runtime.lastError.message)); // 抛出错误
+        } else {
+          logger.info('关键字集合已缓存'); // 移除 cacheData 避免日志过大
+          resolve();
+        }
       });
     });
   } catch (error) {
-    logger.error('缓存关键字集合失败', error);
-    throw error; // 添加错误抛出
+    logger.error('缓存关键字集合时发生异常', error);
+    throw error; // 重新抛出错误
   }
 }
 
 /**
- * @description 从远程获取关键字集合，支持重试和指数退避
+ * @description 请求后台脚本同步并获取最新的关键字数据
+ * @function triggerBackgroundSyncAndFetch
+ * @returns {Promise<KeywordSets | null>} 返回关键字集合或null
+ */
+async function triggerBackgroundSyncAndFetch(): Promise<KeywordSets | null> {
+  return new Promise((resolve, reject) => {
+    // 请求后台执行同步（如果需要）并返回最新数据
+    chrome.runtime.sendMessage({ action: 'getOrSyncKeywords' }, response => {
+      if (chrome.runtime.lastError) {
+        logger.error('请求后台同步关键字失败', chrome.runtime.lastError);
+        reject(new Error(chrome.runtime.lastError.message || '与后台脚本通信失败'));
+        return;
+      }
+
+      if (response && response.success && response.data) {
+        logger.info('后台同步/获取关键字成功');
+        resolve(convertJsonToKeywordSets(response.data));
+      } else {
+        logger.warn('后台同步/获取关键字失败或无数据返回', { error: response?.error });
+        // 即使同步失败，也尝试返回 null，让 getKeywordSets 继续尝试本地数据
+        resolve(null);
+      }
+    });
+  });
+}
+
+/**
+ * @description 从远程获取关键字集合（通过后台脚本），支持重试和指数退避
  * @function fetchKeywordSetsFromRemote
  * @returns {Promise<KeywordSets | null>} 返回关键字集合或null
  */
@@ -174,191 +217,141 @@ async function fetchKeywordSetsFromRemote(): Promise<KeywordSets | null> {
   const INITIAL_DELAY = 1000;        // 初始延迟时间（毫秒）
   const MAX_DELAY = 10000;           // 最大延迟时间（毫秒）
   const JITTER_FACTOR = 0.25;        // 抖动因子（0-1之间）
-  
+
   // 判断是否应该重试的错误类型
   function isRetryableError(error: any): boolean {
-    // 网络错误、超时错误、服务器错误（5xx）可以重试
+    // 网络错误、超时错误、后台通信错误可以重试
+    const message = error?.message?.toLowerCase() || '';
     return (
-      error.name === 'AbortError' ||                 // 超时
-      error.message.includes('network') ||           // 网络错误
-      (error.status >= 500 && error.status < 600) || // 服务器错误
-      error.message.includes('fetch') ||             // fetch相关错误
-      error.message.includes('timeout')              // 超时相关错误
+      error?.name === 'AbortError' ||                 // 超时
+      message.includes('network') ||                  // 网络错误
+      message.includes('failed to fetch') ||          // fetch 失败
+      message.includes('timeout') ||                  // 超时相关错误
+      message.includes('通信失败') ||                 // 后台通信错误
+      message.includes('后台脚本通信失败')
     );
   }
-  
+
   // 计算下一次重试延迟（指数退避 + 抖动）
   function getBackoffDelay(attempt: number): number {
     const exponentialDelay = Math.min(
       MAX_DELAY,
       INITIAL_DELAY * Math.pow(2, attempt)
     );
-    
-    // 添加抖动以避免请求同步
-    const jitter = exponentialDelay * JITTER_FACTOR * Math.random();
-    
-    return exponentialDelay + jitter;
+    const jitter = exponentialDelay * JITTER_FACTOR * (Math.random() - 0.5) * 2; // -jitter to +jitter
+    return Math.max(0, exponentialDelay + jitter); // Ensure delay is not negative
   }
-  
-  /**
-   * @description 通过后台脚本获取远程关键字数据
-   * @function fetchThroughBackground
-   * @param url 远程URL
-   * @returns {Promise<Record<string, string[]>>} 返回关键字数据
-   */
-  async function fetchThroughBackground(url: string): Promise<Record<string, string[]>> {
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(
-        { action: 'fetchRemoteKeywords', url },
-        response => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
-          
-          if (response && response.success) {
-            resolve(response.data);
-          } else {
-            reject(new Error(response?.error || '获取关键字失败'));
-          }
-        }
-      );
-    });
-  }
-  
+
   let retryCount = 0;
   let lastError: any;
 
   while (retryCount <= MAX_RETRIES) {
     try {
-      const keywordsUrl = await getKeywordsUrl();
-      
       if (retryCount > 0) {
-        logger.info(`正在进行第 ${retryCount} 次重试获取关键字数据`, { 
-          url: keywordsUrl,
+        logger.info(`正在进行第 ${retryCount} 次重试获取关键字数据`, {
           lastError: lastError?.message || '未知错误'
         });
       } else {
-        logger.info('正在从远程获取关键字数据', { url: keywordsUrl });
+        logger.info('正在请求后台同步/获取关键字数据');
       }
-      
-      // 获取ETag和Last-Modified
-      let etag = '';
-      let lastModified = '';
-      
-      await new Promise<void>(resolve => {
-        chrome.storage.local.get([
-          'easyfill_keywords_etag',
-          'easyfill_keywords_last_modified'
-        ], (result) => {
-          etag = result['easyfill_keywords_etag'] || '';
-          lastModified = result['easyfill_keywords_last_modified'] || '';
-          resolve();
-        });
-      });
-      
-      // 构建请求头，使用条件请求减少带宽使用
-      const headers: Record<string, string> = {};
-      
-      if (etag) {
-        headers['If-None-Match'] = etag;
+
+      // 请求后台脚本进行同步（如果需要）并获取数据
+      const keywordSets = await triggerBackgroundSyncAndFetch();
+
+      // 如果成功获取到数据 (keywordSets 不为 null)
+      if (keywordSets) {
+         logger.info('通过后台获取远程关键字成功', { retryCount });
+         // 注意：不再在这里调用 saveKeywordSetsToCache，由 background 脚本负责
+         return keywordSets;
+      } else {
+         // 如果 triggerBackgroundSyncAndFetch 返回 null，说明后台未能提供数据
+         // 这可能不是一个可重试的错误（例如，后台同步逻辑判断无需同步且缓存无效）
+         // 或者是一个后台内部错误。我们在这里将其视为失败，但不一定是可重试的。
+         logger.warn('后台未能提供关键字数据', { retryCount });
+         // 决定是否将此视为可重试错误，或者直接跳出循环
+         // 为简单起见，如果后台明确返回 null 而不是抛出错误，我们认为不需要重试
+         lastError = new Error('后台未能提供关键字数据');
+         break; // 跳出重试循环
       }
-      
-      if (lastModified) {
-        headers['If-Modified-Since'] = lastModified;
-      }
-      
-      // 通过后台脚本获取数据，避免CORS问题
-      const jsonData = await fetchThroughBackground(keywordsUrl);
-      
-      if (!jsonData.name || !jsonData.email || !jsonData.url) {
-        throw new Error('关键字数据格式不正确');
-      }
-      
-      // 缓存获取的数据
-      await saveKeywordSetsToCache(jsonData);
-      
-      logger.info('远程关键字获取成功并已缓存', { 
-        retryCount,
-        data: jsonData
-      });
-      return convertJsonToKeywordSets(jsonData);
-      
+
     } catch (error: any) {
       lastError = error;
       const shouldRetry = isRetryableError(error) && retryCount < MAX_RETRIES;
-      
+
       if (shouldRetry) {
         retryCount++;
         const delay = getBackoffDelay(retryCount);
-        
         logger.warn(`获取关键字失败，将在 ${Math.round(delay / 1000)} 秒后重试 (${retryCount}/${MAX_RETRIES})`, {
           error: error.message,
           errorName: error.name,
           retryDelay: delay
         });
-        
+
         // 等待一段时间后重试
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
-      
-      // 如果不应该重试，或者已达到最大重试次数，记录错误并返回null
-      logger.error('获取远程关键字集合失败', {
-        error,
+
+      // 如果不应该重试，或者已达到最大重试次数，记录错误并跳出循环
+      logger.error('获取远程关键字集合失败，已达最大重试次数或错误不可重试', {
+        error: error.message,
+        errorName: error.name,
         retriesAttempted: retryCount
       });
-      return null;
+      break; // 跳出重试循环
     }
   }
-  
-  return null; // 达到最大重试次数后仍然失败
+
+  return null; // 达到最大重试次数或遇到不可重试错误后仍然失败
 }
 
 /**
- * @description 获取关键字集合，优先使用缓存，其次使用远程获取，最后使用默认值
+ * @description 获取关键字集合，优先使用缓存，其次请求后台同步/获取，最后使用默认值
  * @function getKeywordSets
  * @returns {Promise<KeywordSets>} 返回关键字集合
  */
 export async function getKeywordSets(): Promise<KeywordSets> {
   try {
-    // 尝试从缓存获取
-    const cachedSets = await getKeywordSetsFromCache();
-    if (cachedSets) {
+    // 1. 尝试从缓存获取原始数据
+    const cachedRawData = await getKeywordSetsFromCache();
+    if (cachedRawData) {
       logger.info('使用缓存的关键字集合');
-      return cachedSets;
+      // 在这里转换成 KeywordSets (Set<string>)
+      return convertJsonToKeywordSets(cachedRawData);
     }
-    
-    // 尝试从远程获取
-    const remoteUrl = await getKeywordsUrl();
+    logger.info('缓存未命中或已过期');
+
+    // 2. 尝试请求后台同步/获取 (fetchKeywordSetsFromRemote 返回 KeywordSets | null)
     const remoteSets = await fetchKeywordSetsFromRemote();
     if (remoteSets) {
-      logger.info('使用远程的关键字集合', { 
-        source: 'remote', 
-        url: remoteUrl,
-        timestamp: Date.now() 
+      logger.info('使用后台提供的关键字集合', {
+        source: 'background',
+        timestamp: Date.now()
       });
-      return remoteSets;
+      return remoteSets; // 直接返回，已经是 KeywordSets 类型
     }
-    
-    // 如果网络不可用或远程获取失败，使用默认值
+    logger.warn('无法从后台获取关键字集合');
+
+    // 3. 如果网络不可用或远程获取失败，加载本地默认值 (loadDefaultKeywordSets 返回 KeywordSets)
+    logger.info('尝试加载本地默认关键字集合');
     if (!defaultKeywordSets) {
       defaultKeywordSets = await loadDefaultKeywordSets();
     }
-    
-    logger.info('使用本地默认的关键字集合', { 
-      source: 'local', 
-      url: chrome.runtime.getURL('data/keywords.json'),
-      timestamp: Date.now() 
-    });
-    return defaultKeywordSets;
+
+    if (defaultKeywordSets && (defaultKeywordSets.name.size > 0 || defaultKeywordSets.email.size > 0 || defaultKeywordSets.url.size > 0)) {
+       logger.info('使用本地默认的关键字集合', {
+         source: 'local_default',
+         url: chrome.runtime.getURL('data/keywords.json'),
+         timestamp: Date.now()
+       });
+       return defaultKeywordSets; // 直接返回，已经是 KeywordSets 类型
+    } else {
+       logger.warn('本地默认关键字集合为空或加载失败');
+       return { name: new Set<string>(), email: new Set<string>(), url: new Set<string>() };
+    }
+
   } catch (error) {
-    logger.error('获取关键字集合失败，使用默认值', error);
-    // 确保即使出错也能返回一个空集合
-    return {
-      name: new Set<string>(),
-      email: new Set<string>(),
-      url: new Set<string>()
-    };
+    logger.error('获取关键字集合过程中发生严重错误，返回空集合', error);
+    return { name: new Set<string>(), email: new Set<string>(), url: new Set<string>() };
   }
 }

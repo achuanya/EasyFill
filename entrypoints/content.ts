@@ -43,7 +43,7 @@ function handleAutocomplete() {
  * @function fillInputFields
  * @returns {Promise<void>} 返回一个 Promise，表示填充操作的完成状态。
  */
- async function fillInputFields() {
+function fillInputFields() {
   try {
     chrome.storage.sync.get(['name', 'email', 'url'], async (data) => {
       if (data.name && data.email && data.url) {
