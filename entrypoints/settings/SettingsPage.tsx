@@ -21,6 +21,9 @@ import UserSettingsPage from './UserSettingsPage';
 import SyncSettingsPage from './SyncSettings';
 import MarkdownRenderer from './MarkdownRenderer';
 import GlobalScrollbarStyles from './GlobalScrollbarStyles';
+import AdBanner from './AdBanner';
+import WeChatOfficialAccount from './WeChatOfficialAccount';
+import GitHubCorner from './GitHubCorner';
 import { encryptData, decryptData } from '../../utils/cryptoUtils';
 import { logger } from '../../utils/logger';
 
@@ -165,6 +168,8 @@ const SettingsPage: React.FC = () => {
   return (
     <>
       <GlobalScrollbarStyles />
+      {/* 添加GitHub角标 */}
+      <GitHubCorner />
       <Box sx={{ display: 'flex' }}>
         <Box sx={{ flex: 1, p: 3, maxWidth: 768, margin: '0 auto' }}>
           <GravatarAvatar name={name} email={email} />
@@ -218,40 +223,10 @@ const SettingsPage: React.FC = () => {
           {selectedTab === 5 && <MarkdownRenderer content={privacyPolicyContent} />}
 
           {/* 广告位招商 */}
-          <Box
-            sx={{
-              mt: 3,
-              p: 2,
-              border: '1px dashed #ccc',
-              textAlign: 'center',
-              color: '#666',
-              fontSize: '14px',
-              borderRadius: '4px',
-              maxWidth: '285px',
-              mx: 'auto',
-            }}
-          >
-            <Typography variant="body2">广告位招商</Typography>
-            <Typography variant="caption">联系邮箱：haibao1027@gmail.com</Typography>
-          </Box>
+          <AdBanner />
 
           {/* 微信公众号 */}
-          <Box sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            mt: 2,
-          }}>
-            <img
-              src="/images/WeChat-Official-Account.jpg"
-              alt="游钓四方的博客"
-              style={{
-                maxWidth: '350px',
-                height: 'auto',
-                objectFit: 'contain',
-              }}
-            />
-          </Box>
+          <WeChatOfficialAccount />
         </Box>
       </Box>
     </>
