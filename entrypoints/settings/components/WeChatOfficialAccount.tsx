@@ -41,7 +41,6 @@ const WeChatOfficialAccount: React.FC<WeChatOfficialAccountProps> = ({
         <Box
           sx={{
             maxWidth: '350px',
-            boxShadow: '0 3px 10px rgba(0,0,0,0.1)',
             borderRadius: '4px',
             overflow: 'hidden',
             transition: 'transform 0.3s ease',

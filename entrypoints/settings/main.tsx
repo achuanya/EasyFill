@@ -14,7 +14,7 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import SettingsPage from './SettingsPage';
+import SettingsPage from './components/SettingsPage';
 
 const container = document.getElementById('root');
 if (container) {

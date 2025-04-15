@@ -8,12 +8,12 @@
  * @copyright    (c) 2025 游钓四方
  * @license      MPL-2.0
  * --------------------------------------------------------------------------
- * @module       content
+ * @module       entrypoints/content
  */
 
-import { decryptData } from '../utils/cryptoUtils';
-import { logger } from '../utils/logger';
-import { getKeywordSets, KeywordSets } from '../utils/keywordService';
+import { decryptData } from './utils/cryptoUtils';
+import { logger } from './utils/logger';
+import { getKeywordSets, KeywordSets } from './utils/keywordService';
 
 /**
  * @description: 启用浏览器的自动完成功能，设置输入框的 autocomplete 属性为 "on"。

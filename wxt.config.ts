@@ -5,7 +5,7 @@ export default defineConfig({
   manifest:{
     manifest_version: 3,
     name: 'EasyFill',
-    version: '1.0.0',
+    version: '2.0.0',
     description: '简易填充，让每一次评论更自然，与你的博友互动无缝连接',
     icons: {
       '16': 'icon/16.png',
@@ -27,7 +27,7 @@ export default defineConfig({
       default_title: 'EasyFill'
     },
     background: {
-      service_worker: 'background.js'
+      service_worker: 'background/background.js'
     },
     content_scripts: [
       {
@@ -38,7 +38,7 @@ export default defineConfig({
     web_accessible_resources: [
       {
         resources: [
-          'settings.html',
+          'settings/index.html',
           'images/*',
           'data/keywords.json'
         ],

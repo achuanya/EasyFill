@@ -11,8 +11,8 @@
  * @module       background
  */
 
-import { logger } from '../utils/logger';
-import { saveKeywordSetsToCache, getKeywordSetsFromCache } from '../utils/keywordService';
+import { logger } from './utils/logger';
+import { saveKeywordSetsToCache, getKeywordSetsFromCache } from './utils/keywordService';
 
 // 保存定时器ID，用于清理
 let syncIntervalId: number | null = null;
