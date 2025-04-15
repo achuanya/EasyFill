@@ -44,38 +44,38 @@ interface SyncStatus {
 }
 
 export default defineBackground(() => {
-  logger.info('后台脚本已初始化');
-
-  // 在扩展启动时立即开始数据同步
-  initializeKeywordSync();
-
-  // 监听扩展安装或更新事件
   chrome.runtime.onInstalled.addListener(async (details) => {
     let needsInitialSync = false;
+    let reason = '';
     if (details.reason === 'install') {
-      logger.info('已首次安装，准备初始化数据');
+      reason = '首次安装';
+      logger.info(`${reason}，准备初始化数据`);
       needsInitialSync = true;
     } else if (details.reason === 'update') {
-      logger.info(`EasyFill 已更新到版本 ${chrome.runtime.getManifest().version}，准备更新数据`);
+      reason = `更新到版本 ${chrome.runtime.getManifest().version}`;
+      logger.info(`EasyFill 已${reason}，准备更新数据`);
       needsInitialSync = true;
     }
 
-    // 确保在 onInstalled 完成必要操作（包括可能的强制同步）后，再初始化定时同步逻辑
     if (needsInitialSync) {
+      logger.info(`执行 ${reason} 后的强制同步`);
       // 强制同步以获取最新数据
-      await syncKeywordsData(true);
+      await syncKeywordsData(true); // 等待强制同步完成
+      logger.info(`${reason} 强制同步完成`);
     }
-    // 无论是否安装/更新，都初始化或重新初始化同步定时器等
-    await initializeKeywordSync();
+
+    // 无论是否安装/更新，都确保同步定时器根据最新设置被正确初始化
+    // 这将读取最新的 syncEnabled 和 syncInterval 设置并设置或清除定时器
+    logger.info(`在 onInstalled 事件后调用 initializeKeywordSync 以确保定时器状态正确`);
+    await initializeKeywordSync(); // 重新调用以确保定时器基于最新状态设置
   });
 
   // 监听网络状态变化
   if (navigator.connection) {
-    // TypeScript 可能不知道 navigator.connection，但Chrome扩展环境支持
+    // 本地环境会提示 类型“Navigator”上不存在属性“connection”，但Chrome扩展环境支持
     (navigator.connection as any).addEventListener('change', handleNetworkChange);
   }
 
-  // 处理扩展图标点击
   chrome.action.onClicked.addListener((tab) => {
     logger.info('用户点击扩展图标，打开设置页面', { tabId: tab.id });
     chrome.tabs.create({
@@ -87,42 +87,59 @@ export default defineBackground(() => {
     });
   });
 
-  // 处理消息
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'getOrSyncKeywords') {
-      // 触发同步检查（非强制），然后获取最新缓存数据
+      // 触发同步检查（非强制）
       syncKeywordsData(false)
-        .then(syncResult => {
-          if (syncResult.success) {
-            // 同步成功（或无需同步），尝试从缓存获取最新数据
-            return getKeywordSetsFromCache();
+      // 使用 async 以便在内部使用 await
+      .then(async syncResult => {
+        if (syncResult.success) {
+          // 同步成功或无需同步
+          if (syncResult.data) {
+            // 如果 syncKeywordsData 返回了新数据，直接使用它
+            logger.info('getOrSyncKeywords: 使用 syncKeywordsData 返回的新数据');
+            sendResponse({ success: true, data: syncResult.data });
           } else {
-            // 同步失败，抛出错误以便 catch 处理
-            throw new Error(syncResult.message || '同步关键字数据失败');
+            // syncKeywordsData 成功但没有返回新数据 (例如 304 或缓存有效)
+            // 此时需要从缓存读取
+            logger.info('getOrSyncKeywords: syncKeywordsData 未返回新数据，尝试从缓存读取');
+            const cachedData = await getKeywordSetsFromCache();
+            if (cachedData) {
+              sendResponse({ success: true, data: cachedData });
+            } else {
+              // 缓存也没有数据（可能已过期或从未缓存）
+              logger.warn('getOrSyncKeywords: 同步后缓存仍无效或为空，尝试加载本地默认值');
+              try {
+                const localData = await fetchLocalKeywords();
+                sendResponse({ success: true, data: localData });
+              } catch (localError: any) {
+                logger.error('getOrSyncKeywords: 获取本地默认值失败', localError);
+                sendResponse({ success: false, error: '无法获取关键字数据，请检查网络或配置' });
+              }
+            }
           }
-        })
-        .then(cachedData => {
-          if (cachedData) {
-            sendResponse({ success: true, data: cachedData });
-          } else {
-            logger.warn('同步后未能从缓存获取数据');
-            // 尝试获取本地默认值作为备用
-            return fetchLocalKeywords().then(localData => {
-              sendResponse({ success: true, data: localData });
-            }).catch(localError => {
-              logger.error('同步和缓存均失败后，获取本地默认值也失败', localError);
-              sendResponse({ success: false, error: '无法获取关键字数据，请检查网络或配置' });
-            });
+        } else {
+          logger.warn('getOrSyncKeywords: syncKeywordsData 失败，尝试加载本地默认值', { message: syncResult.message });
+          try {
+            const localData = await fetchLocalKeywords();
+            // 同步失败但本地成功，仍视为成功获取数据
+            sendResponse({ success: true, data: localData });
+          } catch (localError: any) {
+            logger.error('getOrSyncKeywords: 同步失败后，获取本地默认值也失败', localError);
+            sendResponse({ success: false, error: syncResult.message || '获取关键字数据失败' });
           }
-        })
-        .catch(error => {
-          logger.error('处理 getOrSyncKeywords 请求失败', error);
-          sendResponse({
-            success: false,
-            error: error.message || '获取或同步关键字数据时发生未知错误'
-          });
+        }
+      })
+      .catch(error => {
+        // 捕获 syncKeywordsData 或 getKeywordSetsFromCache/fetchLocalKeywords 中未处理的异常
+        logger.error('处理 getOrSyncKeywords 请求时发生意外错误', error);
+        sendResponse({
+          success: false,
+          error: error.message || '获取或同步关键字数据时发生未知错误'
         });
-      return true; // 表示异步处理 sendResponse
+      });
+      // 表示异步处理 sendResponse
+      return true;
     }
 
     if (request.action === 'fetchLocalKeywords') {
@@ -160,15 +177,31 @@ export default defineBackground(() => {
     // 更新同步设置
     if (request.action === 'updateSyncSettings') {
       updateSyncSettings(request.settings)
-        .then(() => {
+        .then(async () => {
+          logger.info('检测到关键字数据源更新, 即将强制同步数据...', request.settings.keywordsUrl);
+          
+          try {
+            // 等待强制同步完成
+            const syncResult = await syncKeywordsData(true);
+            logger.info('强制同步数据完成', { success: syncResult.success, message: syncResult.message });
+            // 注意：这里的同步结果目前没有传递回设置页面，设置页面只关心设置是否保存成功。
+          } catch (syncError: any) {
+            logger.error('强制同步数据失败', syncError);
+          }
+          
+          // 设置更新后，重新初始化以应用新设置（例如 URL 更改、启用/禁用、间隔更改）
+          // initializeKeywordSync 内部会处理定时器的重置
+          logger.info('强制同步数据成功，重新调用 initializeKeywordSync 完成更改');
+          initializeKeywordSync();
           sendResponse({ success: true });
-          // 触发一次非强制同步以应用新设置（例如 URL 更改）
-          initializeKeywordSync(); // 重新初始化会检查是否需要立即同步
         })
-        .catch(error => sendResponse({
-          success: false,
-          error: error.message || '更新同步设置失败'
-        }));
+        .catch(error => {
+          logger.error('处理 updateSyncSettings 消息时捕获到错误', error); // 添加日志
+          sendResponse({
+            success: false,
+            error: error.message || '更新同步数据失败'
+          });
+        });
       return true;
     }
 
@@ -177,36 +210,43 @@ export default defineBackground(() => {
 });
 
 /**
- * @description 初始化关键字同步系统
+ * @description 初始化关键字同步系统。负责设置定时器和在非首次启动时检查缓存是否过期。
  * @function initializeKeywordSync
  * @returns {Promise<void>}
  */
 async function initializeKeywordSync(): Promise<void> {
   try {
     const { syncEnabled, syncInterval } = await getSyncSettingsFromStorage();
-
+    logger.info('initializeKeywordSync 开始执行', { syncEnabled, syncInterval });
+    
     if (syncEnabled) {
+      // setupSyncInterval 内部会清理旧定时器
       setupSyncInterval(syncInterval);
 
       const lastSync = await getLastSyncTime();
       const now = Date.now();
 
-      // 仅在非首次启动且缓存过期时，由 initializeKeywordSync 触发同步
-      // 首次安装/更新的同步由 onInstalled 监听器处理
+      // 关键逻辑：仅在 *非首次启动* (lastSync 存在) 且缓存 *确实过期* 时，才由本函数触发同步
+      // 首次安装/更新的同步由 onInstalled 监听器强制执行 syncKeywordsData(true)
       if (lastSync && (now - lastSync > syncInterval)) {
-        logger.info('初始化时检测到缓存过期，需要同步数据');
-        // 使用 await 确保同步操作完成（如果需要后续逻辑依赖它）
+        logger.info('initializeKeywordSync 检测到缓存过期，触发非强制同步', {
+          lastSync: new Date(lastSync).toISOString(),
+          syncIntervalMins: Math.round(syncInterval / 60000),
+          now: new Date(now).toISOString()
+        });
+        // 使用 await 确保同步操作完成（如果需要后续逻辑依赖它），但通常后台启动时不需要阻塞
         await syncKeywordsData(false); // 非强制同步
       } else if (lastSync) {
-        logger.info('缓存数据有效，无需立即同步', {
+        // lastSync 存在但未过期
+        logger.info('initializeKeywordSync 检测到缓存数据仍然有效', {
           lastSync: new Date(lastSync).toISOString(),
           nextSync: new Date(lastSync + syncInterval).toISOString()
         });
       } else {
-        logger.info('首次启动或存储已清除，初始同步将由 onInstalled 事件处理');
+        logger.info('initializeKeywordSync 检测到无上次同步记录 (首次启动或存储清除)，将等待 onInstalled 或下一个定时器周期');
       }
     } else {
-      logger.info('自动同步功能已禁用');
+      logger.info('initializeKeywordSync 检测到自动同步功能已禁用');
       // 清理可能存在的旧定时器
       if (syncIntervalId !== null) {
         clearInterval(syncIntervalId);
@@ -214,6 +254,7 @@ async function initializeKeywordSync(): Promise<void> {
         logger.info('已清除自动同步定时器');
       }
     }
+    logger.info('initializeKeywordSync 执行完毕');
   } catch (error: any) {
     logger.error('初始化关键字同步系统失败', error instanceof Error ? error.message : String(error), error);
   }
@@ -226,26 +267,32 @@ async function initializeKeywordSync(): Promise<void> {
  * @returns {void}
  */
 function setupSyncInterval(interval: number): void {
+  // 总是先清理旧的定时器，防止重复设置
   if (syncIntervalId !== null) {
     clearInterval(syncIntervalId);
+    logger.info('清理了旧的同步定时器', { oldIntervalId: syncIntervalId });
     syncIntervalId = null;
   }
 
   const effectiveInterval = Math.max(interval || DEFAULT_SYNC_INTERVAL, MIN_SYNC_INTERVAL);
 
-  if (effectiveInterval !== interval) {
-    logger.warn('同步间隔调整为有效值', {
+  // 添加 interval !== undefined 检查避免无效警告
+  if (effectiveInterval !== interval && interval !== undefined) {
+    logger.warn('请求的同步间隔无效或过小，已调整为有效值', {
       requestedInterval: interval,
       effectiveInterval: effectiveInterval,
       minInterval: MIN_SYNC_INTERVAL
     });
   }
 
+  // 设置新的定时器
   syncIntervalId = setInterval(() => {
-    syncKeywordsData(false);
+    logger.info('定时器触发，执行非强制同步');
+    syncKeywordsData(false); // 定时器总是执行非强制同步
   }, effectiveInterval) as unknown as number;
 
-  logger.info('已设置关键字自动同步间隔', {
+  logger.info('已设置新的关键字自动同步间隔', {
+    newIntervalId: syncIntervalId,
     intervalMinutes: Math.round(effectiveInterval / (60 * 1000))
   });
 }
@@ -418,6 +465,7 @@ async function getSyncStatus(): Promise<SyncStatus> {
 async function updateSyncSettings(settings: Partial<SyncStatus>): Promise<void> {
   const updates: Record<string, any> = {};
   let needsReInit = false;
+  
 
   if (settings.syncEnabled !== undefined) {
     updates[STORAGE_KEYS.SYNC_ENABLED] = settings.syncEnabled;
@@ -425,8 +473,8 @@ async function updateSyncSettings(settings: Partial<SyncStatus>): Promise<void> 
   }
 
   if (settings.syncInterval !== undefined) {
+    // 确保间隔不小于最小值
     updates[STORAGE_KEYS.SYNC_INTERVAL] = Math.max(settings.syncInterval || 0, MIN_SYNC_INTERVAL);
-    needsReInit = true;
   }
 
   if (settings.networkType !== undefined) {
@@ -434,12 +482,18 @@ async function updateSyncSettings(settings: Partial<SyncStatus>): Promise<void> 
   }
 
   if (settings.keywordsUrl !== undefined) {
+    // 验证 URL 合法性
     try {
-      new URL(settings.keywordsUrl);
-      updates[STORAGE_KEYS.KEYWORDS_URL] = settings.keywordsUrl;
-      needsReInit = true;
+      // 允许空字符串以清除自定义 URL 并回退到默认值
+      if (settings.keywordsUrl === '' || new URL(settings.keywordsUrl)) {
+         updates[STORAGE_KEYS.KEYWORDS_URL] = settings.keywordsUrl;
+      } else {
+         // 如果 URL 无效且非空，则抛出错误
+         throw new Error('无效的 URL 格式');
+      }
     } catch (e) {
       logger.warn('提供的关键字 URL 格式无效，未更新', { url: settings.keywordsUrl });
+      // 向上抛出错误，让消息处理器捕获并通知前端
       throw new Error('关键字 URL 格式无效');
     }
   }
@@ -449,32 +503,28 @@ async function updateSyncSettings(settings: Partial<SyncStatus>): Promise<void> 
     return;
   }
 
+  // 保存更新到存储
   await new Promise<void>((resolve, reject) => {
     chrome.storage.local.set(updates, () => {
       if (chrome.runtime.lastError) {
         logger.error('存储同步设置更新失败', chrome.runtime.lastError);
-        reject(new Error(chrome.runtime.lastError.message));
+        reject(new Error(chrome.runtime.lastError.message || '存储设置失败')); // 提供更明确的错误信息
       } else {
         resolve();
       }
     });
   });
 
-  logger.info('同步设置已更新', { updates });
-
-  if (needsReInit) {
-    logger.info('重新初始化同步系统以应用新设置');
-    await initializeKeywordSync();
-  }
+  logger.info('同步设置已成功存储', { updates });
 }
 
 /**
- * @description 同步关键字数据
+ * @description 同步关键字数据。返回值包含同步是否成功、消息以及可选的新获取的数据。
  * @function syncKeywordsData
  * @param {boolean} forceSync 是否强制同步，忽略缓存
- * @returns {Promise<{success: boolean, message: string}>}
+ * @returns {Promise<{success: boolean, message: string, data?: Record<string, string[]>}>}
  */
-async function syncKeywordsData(forceSync: boolean = false): Promise<{success: boolean, message: string}> {
+async function syncKeywordsData(forceSync: boolean = false): Promise<{success: boolean, message: string, data?: Record<string, string[]>}> {
   try {
     const isOnline = navigator.onLine;
     if (!isOnline) {
@@ -482,14 +532,49 @@ async function syncKeywordsData(forceSync: boolean = false): Promise<{success: b
       return { success: false, message: '设备当前处于离线状态' };
     }
 
-    const { networkType, keywordsUrl: storedKeywordsUrl } = await getSyncSettingsFromStorage();
-    const keywordsUrl = storedKeywordsUrl || 'https://cos.lhasa.icu/EasyFill/keywords.json';
+    // 获取最新的设置，特别是 keywordsUrl
+    const settings = await new Promise<{
+        networkType: 'any' | 'wifi_only',
+        keywordsUrl: string,
+        syncEnabled: boolean, // 也获取 syncEnabled
+        syncInterval: number // 也获取 syncInterval
+    }>((resolve, reject) => {
+        chrome.storage.local.get([
+            STORAGE_KEYS.SYNC_NETWORK_TYPE,
+            STORAGE_KEYS.KEYWORDS_URL,
+            STORAGE_KEYS.SYNC_ENABLED, // 读取 syncEnabled
+            STORAGE_KEYS.SYNC_INTERVAL // 读取 syncInterval
+        ], (result) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+            } else {
+                resolve({
+                    networkType: result[STORAGE_KEYS.SYNC_NETWORK_TYPE] || 'any',
+                    keywordsUrl: result[STORAGE_KEYS.KEYWORDS_URL] || 'https://cos.lhasa.icu/EasyFill/keywords.json',
+                    syncEnabled: result[STORAGE_KEYS.SYNC_ENABLED] !== false, // 默认启用
+                    syncInterval: result[STORAGE_KEYS.SYNC_INTERVAL] || DEFAULT_SYNC_INTERVAL // 默认间隔
+                });
+            }
+        });
+    });
+
+
+    // 如果同步被禁用，则不执行（除非是强制同步，例如来自 onInstalled 或手动触发）
+    if (!settings.syncEnabled && !forceSync) {
+        logger.info('自动同步已禁用，且非强制同步，跳过');
+        return { success: false, message: '自动同步已禁用' };
+    }
+
+
+    const { networkType, keywordsUrl } = settings;
+
 
     if (!keywordsUrl) {
       logger.error('关键字 URL 未配置，无法同步');
       return { success: false, message: '关键字 URL 未配置' };
     }
 
+    // 检查网络类型限制 (仅在非强制同步时检查)
     if (!forceSync && networkType === 'wifi_only') {
       const connection = navigator.connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
       const type = connection?.type;
@@ -502,36 +587,42 @@ async function syncKeywordsData(forceSync: boolean = false): Promise<{success: b
     let etag = '';
     let lastModified = '';
 
+    // 获取 ETag 和 Last-Modified (仅在非强制同步时使用)
     if (!forceSync) {
       try {
-        const result = await new Promise<chrome.storage.StorageAreaGetCallback>(resolve =>
-          chrome.storage.local.get([
-            STORAGE_KEYS.KEYWORDS_ETAG,
-            STORAGE_KEYS.KEYWORDS_LAST_MODIFIED
-          ], resolve)
-        );
-        if (chrome.runtime.lastError) throw new Error(chrome.runtime.lastError.message);
+        // 使用 Promise 包装 chrome.storage.local.get
+        const result = await new Promise<{[key: string]: any}>((resolve, reject) => {
+            chrome.storage.local.get([
+                STORAGE_KEYS.KEYWORDS_ETAG,
+                STORAGE_KEYS.KEYWORDS_LAST_MODIFIED
+            ], (items) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else {
+                    resolve(items);
+                }
+            });
+        });
         etag = result[STORAGE_KEYS.KEYWORDS_ETAG] || '';
         lastModified = result[STORAGE_KEYS.KEYWORDS_LAST_MODIFIED] || '';
-      } catch (storageError) {
-        logger.warn('获取 ETag/Last-Modified 失败，将执行完整请求', storageError);
+      } catch (storageError: any) { // 显式类型化 error
+        logger.warn('获取 ETag/Last-Modified 失败，将执行完整请求', storageError.message);
       }
     }
 
     const headers: Record<string, string> = {
       'Accept': 'application/json'
     };
-
+    // 添加条件请求头 (仅在非强制同步且 ETag/LastModified 存在时)
     if (etag && !forceSync) {
       headers['If-None-Match'] = etag;
     }
-
     if (lastModified && !forceSync) {
       headers['If-Modified-Since'] = lastModified;
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
 
     try {
       logger.info('开始同步关键字数据', {
@@ -543,60 +634,97 @@ async function syncKeywordsData(forceSync: boolean = false): Promise<{success: b
       const response = await fetch(keywordsUrl, {
         method: 'GET',
         headers,
-        cache: 'no-cache',
+        cache: 'no-cache', // 确保获取最新数据
         signal: controller.signal
       });
 
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutId); // 清除超时定时器
 
+      //
+      // 处理不同的响应状态码
+      // 304 Not Modified: 数据未变化，使用缓存的 ETag 和 Last-Modified
+      // 200 OK: 数据已更新，使用新的 ETag 和 Last-Modified
+      // 404 Not Found: 资源未找到，可能需要清除缓存的 ETag 和 Last-Modified
+      // 500 Internal Server Error: 服务器错误，可能需要重试
+      //
+
+      // 304 Not Modified: 数据未变化
       if (response.status === 304) {
         logger.info('关键字数据未变化 (304 Not Modified)');
+        // 即使数据未变，也更新上次同步时间戳，表示我们检查过了
         await updateLastSyncTime();
+        // 成功，但没有新数据
         return { success: true, message: '关键字数据未更新' };
       }
 
+      // 处理非 OK 状态码 (例如 404, 500)
       if (!response.ok) {
-        logger.error(`HTTP 错误: ${response.status} ${response.statusText}`, { url: keywordsUrl });
+        logger.error(`HTTP 错误: ${response.status} ${response.statusText}`, { url: keywordsUrl, status: response.status });
+        // 根据状态码可以决定是否清除 ETag/LastModified，例如 404 可能意味着资源不存在了
+        if (response.status === 404) {
+             logger.warn('资源未找到 (404)，可能需要检查 URL 或清除旧的 ETag/LastModified');
+             // 可选：清除 ETag/LastModified 避免后续无效的条件请求
+             try {
+                await new Promise<void>((resolve, reject) => {
+                    chrome.storage.local.remove([STORAGE_KEYS.KEYWORDS_ETAG, STORAGE_KEYS.KEYWORDS_LAST_MODIFIED], () => {
+                        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+                        else resolve();
+                    });
+                });
+                logger.info('已清除旧的 ETag/Last-Modified 由于 404 错误');
+             } catch (removeError: any) {
+                 logger.warn('清除 ETag/Last-Modified 失败', removeError.message);
+             }
+        }
         throw new Error(`HTTP 错误: ${response.status}`);
       }
 
+      // 处理成功获取的新数据 (2xx 状态码)
+
+      // 获取新的 ETag 和 Last-Modified
       const newEtag = response.headers.get('ETag') || '';
       const newLastModified = response.headers.get('Last-Modified') || '';
 
+      // 保存新的 ETag 和 Last-Modified
       const headerUpdates: Record<string, string> = {};
       if (newEtag) headerUpdates[STORAGE_KEYS.KEYWORDS_ETAG] = newEtag;
       if (newLastModified) headerUpdates[STORAGE_KEYS.KEYWORDS_LAST_MODIFIED] = newLastModified;
 
       if (Object.keys(headerUpdates).length > 0) {
         try {
+          // 使用 Promise 包装 set 操作
           await new Promise<void>((resolve, reject) => {
             chrome.storage.local.set(headerUpdates, () => {
               if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
               else resolve();
             });
           });
-          logger.info('已更新 ETag/Last-Modified 头信息');
-        } catch (storageError) {
-          logger.warn('保存 ETag/Last-Modified 头信息失败', storageError);
+          logger.info('已更新 ETag/Last-Modified 头信息', headerUpdates);
+        } catch (storageError: any) {
+          logger.warn('保存 ETag/Last-Modified 头信息失败', storageError.message);
         }
       }
 
+      // 解析 JSON 数据
       let jsonData: Record<string, string[]>;
       try {
         jsonData = await response.json();
-      } catch (parseError) {
-        logger.error('解析关键字 JSON 数据失败', { error: parseError, url: keywordsUrl });
+      } catch (parseError: any) {
+        logger.error('解析关键字 JSON 数据失败', { error: parseError.message, url: keywordsUrl });
         throw new Error('无法解析服务器返回的关键字数据');
       }
 
+      // 验证 JSON 数据结构
       if (!jsonData || typeof jsonData !== 'object' || !Array.isArray(jsonData.name) || !Array.isArray(jsonData.email) || !Array.isArray(jsonData.url)) {
-        logger.error('关键字数据格式不正确', { dataReceived: jsonData });
+        logger.error('关键字数据格式不正确', { dataReceived: jsonData ? Object.keys(jsonData) : null }); // 记录收到的 key
         throw new Error('关键字数据格式不正确');
       }
 
-      await saveKeywordSetsToCache(jsonData);
+      // 保存数据到缓存
+      await saveKeywordSetsToCache(jsonData); // saveKeywordSetsToCache 内部有日志
 
-      await updateLastSyncTime();
+      // 更新上次同步时间
+      await updateLastSyncTime(); // updateLastSyncTime 内部有日志
 
       logger.info('关键字数据同步并缓存成功', {
         timestamp: Date.now(),
@@ -607,18 +735,23 @@ async function syncKeywordsData(forceSync: boolean = false): Promise<{success: b
         }
       });
 
-      return { success: true, message: '关键字数据已成功更新' };
+      return { success: true, message: '关键字数据已成功更新', data: jsonData };
 
     } catch (fetchError: any) {
-      clearTimeout(timeoutId);
+      // 处理 fetch 本身的错误 (网络问题、超时等)
+      clearTimeout(timeoutId); // 确保超时定时器被清除
       if (fetchError.name === 'AbortError') {
         logger.warn('关键字数据同步超时', { url: keywordsUrl });
         return { success: false, message: '同步请求超时' };
       }
+      // 对于其他 fetch 错误，记录并作为失败返回
+      logger.error('Fetch 请求失败', { error: fetchError.message, name: fetchError.name, url: keywordsUrl });
+      // 重新抛出，让顶层 catch 处理
       throw fetchError;
     }
   } catch (error: any) {
-    logger.error('同步关键字数据过程中发生未捕获错误', error);
+    // 顶层 catch 处理所有未被内部捕获的错误
+    logger.error('同步关键字数据过程中发生未捕获错误', { errorMessage: error.message, errorName: error.name, stack: error.stack });
     return { success: false, message: error.message || '同步失败，请稍后重试' };
   }
 }

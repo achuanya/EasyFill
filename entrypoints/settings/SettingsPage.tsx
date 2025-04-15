@@ -12,9 +12,9 @@
  */
 
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Tabs, Tab } from '@mui/material';
-import { AccountCircle, Extension, Info, Article, Chat, Policy, Sync } from '@mui/icons-material';
+import { AccountBox, SyncAlt, Extension, ContactPage, Article, Policy, Chat } from '@mui/icons-material';
 import { marked } from 'marked';
 import GravatarAvatar from './GravatarAvatar';
 import UserSettingsPage from './UserSettingsPage';
@@ -35,10 +35,10 @@ const SettingsPage: React.FC = () => {
 
   const [editing, setEditing] = useState(false); // 是否处于编辑模式
 
-  const [aboutAuthorContent, setAboutAuthorContent] = useState<string>(''); // 关于作者的 Markdown 内容
+  const [aboutAuthorContent, setAboutAuthorContent] = useState<string>('');               // 关于作者的 Markdown 内容
   const [recommendedPluginsContent, setRecommendedPluginsContent] = useState<string>(''); // 推荐插件的 Markdown 内容
-  const [updateLogContent, setUpdateLogContent] = useState<string>(''); // 更新日志的 Markdown 内容
-  const [privacyPolicyContent, setPrivacyPolicyContent] = useState<string>(''); // 隐私权政策的 Markdown 内容
+  const [updateLogContent, setUpdateLogContent] = useState<string>('');                   // 更新日志的 Markdown 内容
+  const [privacyPolicyContent, setPrivacyPolicyContent] = useState<string>('');           // 隐私权政策的 Markdown 内容
 
   // 从 chrome.storage 读取用户数据
   useEffect(() => {
@@ -169,10 +169,10 @@ const SettingsPage: React.FC = () => {
         <Box sx={{ flex: 1, p: 3, maxWidth: 768, margin: '0 auto' }}>
           <GravatarAvatar name={name} email={email} />
           <Tabs value={selectedTab} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tab label="我的信息" icon={<AccountCircle />} />
-            <Tab label="同步设置" icon={<Sync />} />
+            <Tab label="我的信息" icon={<AccountBox />} />
+            <Tab label="同步设置" icon={<SyncAlt />} />
             <Tab label="推荐插件" icon={<Extension />} />
-            <Tab label="关于作者" icon={<Info />} />
+            <Tab label="关于作者" icon={<ContactPage />} />
             <Tab label="更新日志" icon={<Article />} />
             <Tab label="隐私权政策" icon={<Policy />} />
             <Tab
