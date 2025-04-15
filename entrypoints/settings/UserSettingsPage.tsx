@@ -160,21 +160,6 @@ const UserSettingsPage: React.FC<UserSettingsPageProps> = ({
         >
           {editing ? '保存' : '更改'}
         </Button>
-
-        <Box
-          sx={{
-            mt: 2,
-            p: 2,
-            border: '1px dashed #ccc',
-            textAlign: 'center',
-            color: '#666',
-            fontSize: '14px',
-            borderRadius: '4px',
-          }}
-        >
-          <Typography variant="body2">广告位招商</Typography>
-          <Typography variant="caption">联系邮箱：haibao1027@gmaill.com</Typography>
-        </Box>
       </Box>
 
       {/* Snackbar 提示 */}

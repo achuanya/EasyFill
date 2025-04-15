@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Box, Card, CardContent, Typography, Switch, 
-  FormControl, FormControlLabel, Select, MenuItem,
-  Button, CircularProgress, Divider, Tooltip,
-  InputLabel, TextField, IconButton, Alert
+  Box, Typography, Switch, FormControl, FormControlLabel, 
+  Select, MenuItem, Button, CircularProgress, Divider, 
+  Tooltip, InputLabel, TextField, IconButton, Snackbar, Alert
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SettingsBackupRestoreIcon from '@mui/icons-material/SettingsBackupRestore';
@@ -23,9 +22,13 @@ const SyncSettings: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [message, setMessage] = useState<{type: 'success' | 'error' | 'info', text: string} | null>(null);
   const [customUrl, setCustomUrl] = useState('');
   const [editingUrl, setEditingUrl] = useState(false);
+  
+  // 使用Snackbar代替内联Alert，与UserSettingsPage保持一致
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'error' | 'info' | 'success' | 'warning'>('info');
 
   // 加载同步状态
   useEffect(() => {
@@ -41,14 +44,21 @@ const SyncSettings: React.FC = () => {
         setSyncStatus(response.data);
         setCustomUrl(response.data.keywordsUrl);
       } else {
-        setMessage({ type: 'error', text: response.error || '获取同步状态失败' });
+        showMessage('error', response.error || '获取同步状态失败');
       }
     } catch (error) {
       logger.error('加载同步状态失败', error);
-      setMessage({ type: 'error', text: '加载同步状态时发生错误' });
+      showMessage('error', '加载同步状态时发生错误');
     } finally {
       setLoading(false);
     }
+  };
+
+  // 显示消息的辅助函数
+  const showMessage = (severity: 'error' | 'info' | 'success' | 'warning', message: string) => {
+    setSnackbarSeverity(severity);
+    setSnackbarMessage(message);
+    setOpenSnackbar(true);
   };
 
   // 更新同步设置
@@ -60,45 +70,41 @@ const SyncSettings: React.FC = () => {
       });
       
       if (response.success) {
-        // 更新本地状态
+        // 只更新本地状态，不再调用loadSyncStatus
         setSyncStatus(prev => prev ? { ...prev, ...updates } : null);
-        setMessage({ type: 'success', text: '同步设置已更新' });
-        
-        // 刷新同步状态
-        setTimeout(() => loadSyncStatus(), 500);
+        showMessage('success', '同步设置已更新');
       } else {
-        setMessage({ type: 'error', text: response.error || '更新同步设置失败' });
+        showMessage('error', response.error || '更新同步设置失败');
       }
     } catch (error) {
       logger.error('更新同步设置失败', error);
-      setMessage({ type: 'error', text: '更新同步设置时发生错误' });
+      showMessage('error', '更新同步设置时发生错误');
     }
   };
 
   // 手动触发同步
   const syncNow = async () => {
     setSyncing(true);
-    setMessage(null);
     
     try {
       const response = await chrome.runtime.sendMessage({ action: 'syncKeywordsNow' });
       if (response.success) {
-        setMessage({ 
-          type: 'success', 
-          text: response.data.message || '关键字数据已成功同步' 
-        });
-        
-        // 刷新同步状态
-        setTimeout(() => loadSyncStatus(), 500);
+        // 只更新最后同步时间，而不是重新加载整个状态
+        if (syncStatus) {
+          const now = Date.now();
+          setSyncStatus(prev => prev ? {
+            ...prev,
+            lastSync: now,
+            nextSync: now + (prev.syncInterval || 21600000)
+          } : null);
+        }
+        showMessage('success', response.data.message || '关键字数据已成功同步');
       } else {
-        setMessage({ 
-          type: 'error', 
-          text: response.data?.message || response.error || '同步失败' 
-        });
+        showMessage('error', response.data?.message || response.error || '同步失败');
       }
     } catch (error) {
       logger.error('手动同步失败', error);
-      setMessage({ type: 'error', text: '同步过程中发生错误' });
+      showMessage('error', '同步过程中发生错误');
     } finally {
       setSyncing(false);
     }
@@ -133,31 +139,25 @@ const SyncSettings: React.FC = () => {
   }
 
   return (
-    <Card variant="outlined" sx={{ mt: 3 }}>
-      <CardContent>
+    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+      <Box sx={{ width: '100%', maxWidth: 400 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" component="h2">
-            同步设置
-          </Typography>
-          <Button 
-            variant="outlined" 
-            startIcon={syncing ? <CircularProgress size={20} /> : <RefreshIcon />}
+          <Typography variant="h6">同步设置</Typography>
+          <Button
+            variant="contained"
+            startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
             onClick={syncNow}
             disabled={syncing}
+            sx={{
+              background: 'linear-gradient(to right, #007bff, #00d4ff)',
+              '&:hover': {
+                backgroundColor: '#0056b3',
+              },
+            }}
           >
             {syncing ? '同步中...' : '立即同步'}
           </Button>
         </Box>
-
-        {message && (
-          <Alert 
-            severity={message.type} 
-            sx={{ mb: 2 }}
-            onClose={() => setMessage(null)}
-          >
-            {message.text}
-          </Alert>
-        )}
 
         <Box sx={{ mb: 3 }}>
           <FormControlLabel
@@ -186,9 +186,7 @@ const SyncSettings: React.FC = () => {
           >
             <MenuItem value={3600000}>每小时</MenuItem>
             <MenuItem value={21600000}>每6小时</MenuItem>
-            <MenuItem value={43200000}>每12小时</MenuItem>
             <MenuItem value={86400000}>每天</MenuItem>
-            <MenuItem value={259200000}>每3天</MenuItem>
             <MenuItem value={604800000}>每周</MenuItem>
           </Select>
         </FormControl>
@@ -209,90 +207,97 @@ const SyncSettings: React.FC = () => {
 
         <Divider sx={{ my: 3 }} />
 
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            关键字数据源
-          </Typography>
-          
-          {editingUrl ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="自定义URL"
-                value={customUrl}
-                onChange={(e) => setCustomUrl(e.target.value)}
-                placeholder="https://example.com/keywords.json"
-              />
-              <Button 
-                sx={{ ml: 1 }}
-                variant="contained" 
-                size="small"
-                onClick={saveCustomUrl}
-              >
-                保存
-              </Button>
-              <Button 
-                sx={{ ml: 1 }}
-                variant="outlined" 
-                size="small"
-                onClick={() => {
-                  setCustomUrl(syncStatus?.keywordsUrl || '');
-                  setEditingUrl(false);
-                }}
-              >
-                取消
-              </Button>
-            </Box>
-          ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  flexGrow: 1,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {syncStatus?.keywordsUrl || '未设置'}
-              </Typography>
-              <Button 
-                size="small"
-                startIcon={<SettingsBackupRestoreIcon />}
-                onClick={resetToDefaultUrl}
-                sx={{ ml: 1 }}
-              >
-                重置
-              </Button>
-              <Button 
-                size="small"
-                onClick={() => setEditingUrl(true)}
-                sx={{ ml: 1 }}
-              >
-                编辑
-              </Button>
-            </Box>
-          )}
-        </Box>
+        <Typography variant="subtitle1" gutterBottom>关键字数据源</Typography>
+        
+        {editingUrl ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+            <TextField
+              fullWidth
+              size="small"
+              label="自定义URL"
+              value={customUrl}
+              onChange={(e) => setCustomUrl(e.target.value)}
+              placeholder="https://example.com/keywords.json"
+            />
+            <Button 
+              sx={{ ml: 1 }}
+              variant="contained"
+              size="small"
+              onClick={saveCustomUrl}
+              style={{
+                background: 'linear-gradient(to right, #007bff, #00d4ff)',
+              }}
+            >
+              保存
+            </Button>
+            <Button 
+              sx={{ ml: 1 }}
+              variant="outlined" 
+              size="small"
+              onClick={() => {
+                setCustomUrl(syncStatus?.keywordsUrl || '');
+                setEditingUrl(false);
+              }}
+            >
+              取消
+            </Button>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                flexGrow: 1,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {syncStatus?.keywordsUrl || '未设置'}
+            </Typography>
+            <Button 
+              size="small"
+              startIcon={<SettingsBackupRestoreIcon />}
+              onClick={resetToDefaultUrl}
+              sx={{ ml: 1 }}
+            >
+              重置
+            </Button>
+            <Button 
+              size="small"
+              onClick={() => setEditingUrl(true)}
+              sx={{ ml: 1 }}
+            >
+              编辑
+            </Button>
+          </Box>
+        )}
 
         <Divider sx={{ my: 3 }} />
 
-        <Box>
-          <Typography variant="subtitle2" gutterBottom>
-            同步状态
+        <Typography variant="subtitle1" gutterBottom>同步状态</Typography>
+        <Typography variant="body2" color="text.secondary" paragraph>
+          上次同步: {syncStatus?.lastSync ? formatDate(syncStatus.lastSync) : '从未同步'}
+        </Typography>
+        {syncStatus?.syncEnabled && syncStatus?.lastSync && (
+          <Typography variant="body2" color="text.secondary">
+            下次同步: {formatDate(syncStatus.nextSync)}
           </Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            上次同步: {syncStatus?.lastSync ? formatDate(syncStatus.lastSync) : '从未同步'}
-          </Typography>
-          {syncStatus?.syncEnabled && syncStatus?.lastSync && (
-            <Typography variant="body2" color="text.secondary">
-              下次同步: {formatDate(syncStatus.nextSync)}
-            </Typography>
-          )}
-        </Box>
-      </CardContent>
-    </Card>
+        )}
+      </Box>
+
+      {/* Snackbar 提示，与 UserSettingsPage 保持一致 */}
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={3000}
+        onClose={() => setOpenSnackbar(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setOpenSnackbar(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

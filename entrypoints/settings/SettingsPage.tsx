@@ -13,7 +13,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { Box, Tabs, Tab } from '@mui/material';
+import { Box, Tabs, Tab, Typography } from '@mui/material';
 import { AccountBox, SyncAlt, Extension, ContactPage, Article, Policy, Chat } from '@mui/icons-material';
 import { marked } from 'marked';
 import GravatarAvatar from './GravatarAvatar';
@@ -217,11 +217,30 @@ const SettingsPage: React.FC = () => {
           {/* 隐私权政策 */}
           {selectedTab === 5 && <MarkdownRenderer content={privacyPolicyContent} />}
 
+          {/* 广告位招商 */}
+          <Box
+            sx={{
+              mt: 3,
+              p: 2,
+              border: '1px dashed #ccc',
+              textAlign: 'center',
+              color: '#666',
+              fontSize: '14px',
+              borderRadius: '4px',
+              maxWidth: '285px',
+              mx: 'auto',
+            }}
+          >
+            <Typography variant="body2">广告位招商</Typography>
+            <Typography variant="caption">联系邮箱：haibao1027@gmail.com</Typography>
+          </Box>
+
+          {/* 微信公众号 */}
           <Box sx={{
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            mt: 3,
+            mt: 2,
           }}>
             <img
               src="/images/WeChat-Official-Account.jpg"
