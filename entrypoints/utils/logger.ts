@@ -77,6 +77,9 @@ const DEFAULT_COLORS: LogColors = {
   timestamp: 'color: #9E9E9E; font-weight: normal',
 };
 
+// 存储键名
+const LOGGER_STORAGE_KEY = 'easyfill_logger_enabled';
+const HELP_SHOWN_KEY = 'easyfill_logger_help_shown';
 
 /**
  * @description: 日志系统类
@@ -96,14 +99,15 @@ export class Logger {
   private config: LoggerConfig = {
     level: LogLevel.INFO,
     prefix: '[EasyFill]',
-    enabled: true,
+    enabled: false, // 默认关闭日志
     useColors: true,
     showTimestamp: true,
     colors: { ...DEFAULT_COLORS },
   };
+  private isInitialized = false;
 
   private constructor() {
-      this.configureByEnvironment();
+      this.initializeAsync();
   }
 
   /**
@@ -116,6 +120,168 @@ export class Logger {
       Logger.instance = new Logger();
     }
     return Logger.instance;
+  }
+
+  /**
+   * @description: 异步初始化Logger
+   * @function initializeAsync
+   * @returns {Promise<void>}
+   */
+  private async initializeAsync(): Promise<void> {
+    if (this.isInitialized) return;
+    
+    await this.loadLoggerState();
+    this.setupConsoleCommands();
+    this.isInitialized = true;
+  }
+
+  /**
+   * @description: 确保Logger已初始化
+   * @function ensureInitialized
+   * @returns {Promise<void>}
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (!this.isInitialized) {
+      await this.initializeAsync();
+    }
+  }
+
+  /**
+   * @description: 从存储中加载日志状态
+   * @function loadLoggerState
+   * @returns {Promise<void>}
+   */
+  private async loadLoggerState(): Promise<void> {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        // Chrome扩展环境
+        return new Promise<void>((resolve) => {
+          chrome.storage.local.get([LOGGER_STORAGE_KEY], (result) => {
+            if (!chrome.runtime.lastError && result[LOGGER_STORAGE_KEY] !== undefined) {
+              this.config.enabled = result[LOGGER_STORAGE_KEY];
+            }
+            resolve();
+          });
+        });
+      } else {
+        // 普通网页环境
+        const stored = localStorage.getItem(LOGGER_STORAGE_KEY);
+        if (stored !== null) {
+          this.config.enabled = JSON.parse(stored);
+        }
+      }
+    } catch (error) {
+      // 静默处理存储读取错误，保持默认状态
+    }
+  }
+
+  /**
+   * @description: 保存日志状态到存储
+   * @function saveLoggerState
+   * @returns {Promise<void>}
+   */
+  private async saveLoggerState(): Promise<void> {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        // Chrome扩展环境
+        return new Promise<void>((resolve) => {
+          chrome.storage.local.set({ [LOGGER_STORAGE_KEY]: this.config.enabled }, () => {
+            resolve();
+          });
+        });
+      } else {
+        // 普通网页环境
+        localStorage.setItem(LOGGER_STORAGE_KEY, JSON.stringify(this.config.enabled));
+      }
+    } catch (error) {
+      // 静默处理存储保存错误
+    }
+  }
+
+  /**
+   * @description: 检查是否已显示过帮助信息
+   * @function hasShownHelp
+   * @returns {boolean}
+   */
+  private hasShownHelp(): boolean {
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        return sessionStorage.getItem(HELP_SHOWN_KEY) === 'true';
+      }
+    } catch (error) {
+      // 静默处理
+    }
+    return false;
+  }
+
+  /**
+   * @description: 标记已显示帮助信息
+   * @function markHelpShown
+   * @returns {void}
+   */
+  private markHelpShown(): void {
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(HELP_SHOWN_KEY, 'true');
+      }
+    } catch (error) {
+      // 静默处理
+    }
+  }
+
+  /**
+   * @description: 设置控制台命令
+   * @function setupConsoleCommands
+   * @returns {void}
+   */
+  private setupConsoleCommands(): void {
+    // 将控制函数绑定到全局对象
+    if (typeof window !== 'undefined') {
+      (window as any).EasyFillLogger = {
+        enable: async () => {
+          await this.ensureInitialized();
+          this.config.enabled = true;
+          await this.saveLoggerState();
+          console.log('%c[EasyFill] 日志系统已启用', 'color: #4CAF50; font-weight: bold');
+          console.log('%c[EasyFill] 使用 EasyFillLogger.disable() 来关闭日志', 'color: #2196F3; font-weight: normal');
+          return '日志系统已启用';
+        },
+        disable: async () => {
+          await this.ensureInitialized();
+          console.log('%c[EasyFill] 日志系统已关闭', 'color: #FF9800; font-weight: bold');
+          this.config.enabled = false;
+          await this.saveLoggerState();
+          return '日志系统已关闭';
+        },
+        status: async () => {
+          await this.ensureInitialized();
+          const status = this.config.enabled ? '启用' : '关闭';
+          console.log(`%c[EasyFill] 日志系统状态: ${status}`, 
+            `color: ${this.config.enabled ? '#4CAF50' : '#FF9800'}; font-weight: bold`);
+          return `日志系统状态: ${status}`;
+        }
+      };
+
+      // 只在主页面（非content script）且未显示过帮助时显示命令提示
+      const isContentScript = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL;
+      const isMainPage = !isContentScript || window === window.top;
+      
+      if (isMainPage && !this.config.enabled && !this.hasShownHelp()) {
+        setTimeout(() => {
+          console.log('%c[EasyFill] 日志系统已关闭', 'color: #9E9E9E; font-weight: normal');
+          console.log('%c[EasyFill] 使用以下命令控制日志:', 'color: #2196F3; font-weight: bold');
+          console.log('%c  EasyFillLogger.enable()  - 启用日志', 'color: #4CAF50; font-weight: normal');
+          console.log('%c  EasyFillLogger.disable() - 关闭日志', 'color: #FF9800; font-weight: normal');
+          console.log('%c  EasyFillLogger.status()  - 查看状态', 'color: #2196F3; font-weight: normal');
+          this.markHelpShown();
+        }, 100);
+      } else if (this.config.enabled && isMainPage) {
+        // 如果日志已启用，显示启用状态
+        setTimeout(() => {
+          console.log('%c[EasyFill] 日志系统已启用', 'color: #4CAF50; font-weight: bold');
+        }, 100);
+      }
+    }
   }
 
   /**
@@ -134,11 +300,6 @@ export class Logger {
       this.setLevel(LogLevel.INFO)
           .useColors(true)
           .showTimestamp(true);
-      
-      // 在开发环境下输出初始化信息（但避免在构造函数中调用info方法造成递归）
-      setTimeout(() => {
-        this.info('已自动启用开发环境日志配置');
-      }, 0);
     }
     
     return this;
@@ -161,8 +322,10 @@ export class Logger {
    * @param enabled 是否启用日志输出
    * @returns {Logger} 返回 Logger 实例
    */
-  public setEnabled(enabled: boolean): Logger {
+  public async setEnabled(enabled: boolean): Promise<Logger> {
+    await this.ensureInitialized();
     this.config.enabled = enabled;
+    await this.saveLoggerState();
     return this;
   }
 
@@ -250,7 +413,8 @@ export class Logger {
    * @param args 附加参数
    * @return {void}
    */
-  public info(message: string, ...args: any[]): void {
+  public async info(message: string, ...args: any[]): Promise<void> {
+    await this.ensureInitialized();
     if (this.shouldLog(LogLevel.INFO)) {
       if (this.config.useColors) {
         this.logWithColors(LogLevel.INFO, message, ...args);
@@ -267,7 +431,8 @@ export class Logger {
    * @param args 附加参数
    * @return {void}
    */
-  public warn(message: string, ...args: any[]): void {
+  public async warn(message: string, ...args: any[]): Promise<void> {
+    await this.ensureInitialized();
     if (this.shouldLog(LogLevel.WARN)) {
       if (this.config.useColors) {
         this.logWithColors(LogLevel.WARN, message, ...args);
@@ -284,7 +449,8 @@ export class Logger {
    * @param args 附加参数
    * @return {void}
    */
-  public error(message: string, ...args: any[]): void {
+  public async error(message: string, ...args: any[]): Promise<void> {
+    await this.ensureInitialized();
     if (this.shouldLog(LogLevel.ERROR)) {
       if (this.config.useColors) {
         this.logWithColors(LogLevel.ERROR, message, ...args);
