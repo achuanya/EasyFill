@@ -22,20 +22,53 @@ import { getKeywordSets, KeywordSets } from './utils/keywordService';
  */
 function handleAutocomplete() {
   try {
-    const inputElements = document.querySelectorAll('input, textarea');
-    logger.info(`找到 ${inputElements.length} 个可填充元素`);
+    const inputElements = getAllInputElements();
+    logger.info(`找到 ${inputElements.length} 个可填充元素（包括 Shadow DOM）`);
     
-    // 获取页面上的所有输入框
-    const inputs = document.querySelectorAll('input');
-    inputs.forEach(input => {
-      // 设置每个输入框的 autocomplete 属性为 "on"，以启用浏览器的自动完成功能
-      input.setAttribute('autocomplete', 'on');
+    // 设置每个输入框的 autocomplete 属性为 "on"，以启用浏览器的自动完成功能
+    inputElements.forEach(input => {
+      if (input instanceof HTMLInputElement) {
+        input.setAttribute('autocomplete', 'on');
+      }
     });
 
     logger.info('输入框自动完成功能已启用');
   } catch (error) {
     logger.error('启用自动完成功能时发生错误', error);
   }
+}
+
+/**
+ * @description: 获取所有输入元素，包括 Shadow DOM 内部的元素
+ * @function getAllInputElements
+ * @returns {Element[]} 返回所有找到的输入元素数组
+ */
+function getAllInputElements(): Element[] {
+  const elements: Element[] = [];
+  
+  // 递归遍历 Shadow DOM 的函数
+  function traverseShadowDOM(root: Document | ShadowRoot | Element) {
+    // 获取当前根节点下的所有输入元素
+    const inputs = root.querySelectorAll('input, textarea');
+    elements.push(...Array.from(inputs));
+    
+    // 查找所有具有 Shadow Root 的元素
+    const allElements = root.querySelectorAll('*');
+    allElements.forEach(element => {
+      if (element.shadowRoot) {
+        logger.info('发现 Shadow DOM，正在遍历', { 
+          tagName: element.tagName, 
+          shadowRootMode: element.shadowRoot.mode 
+        });
+        traverseShadowDOM(element.shadowRoot);
+      }
+    });
+  }
+  
+  // 从 document 开始遍历
+  traverseShadowDOM(document);
+  
+  return elements;
 }
 
 /**
@@ -66,7 +99,8 @@ function fillInputFields() {
           return;
         }
 
-        const inputs = document.querySelectorAll("input, textarea");
+        // 使用新的函数获取所有输入元素（包括 Shadow DOM）
+        const inputs = getAllInputElements();
         let fieldsFound = 0;
         let foundFieldTypes = new Set<string>(); // 记录已找到的字段类型
         
@@ -118,6 +152,7 @@ function fillInputFields() {
             type: typeAttr || "",
             matchedBy,
             valueToSet,
+            inShadowDOM: isInShadowDOM(input)
           };
 
           // 执行填充操作
@@ -149,27 +184,7 @@ function fillInputFields() {
           
           // 为每种未找到的字段类型尝试通用选择器
           for (const fieldType of missingFieldTypes) {
-            let selectors: string[] = [];
             let valueToFill = '';
-            
-            // 从关键字数据源动态生成选择器
-            const keywordSet = keywordSets[fieldType as keyof KeywordSets];
-            if (keywordSet) {
-              // 为每个关键字生成 placeholder 选择器
-              keywordSet.forEach(keyword => {
-                // 跳过以 # 开头的关键字（这些已经在主匹配逻辑中处理过了）
-                if (!keyword.startsWith('#')) {
-                  selectors.push(`input[placeholder*="${keyword}"]`);
-                }
-              });
-              
-              // 添加 type 选择器（如果适用）
-              if (fieldType === 'email') {
-                selectors.push('input[type="email"]');
-              } else if (fieldType === 'url') {
-                selectors.push('input[type="url"]');
-              }
-            }
             
             // 设置要填充的值
             switch (fieldType) {
@@ -184,16 +199,57 @@ function fillInputFields() {
                 break;
             }
             
-            // 尝试使用生成的选择器填充字段
-            for (const selector of selectors) {
-              const element = document.querySelector(selector);
-              if (element && element instanceof HTMLInputElement && !element.value) {
-                element.value = valueToFill;
-                element.dispatchEvent(new Event('input', { bubbles: true }));
-                element.dispatchEvent(new Event('change', { bubbles: true }));
-                additionalFields++;
-                logger.info(`使用通用选择器填充字段: ${selector}`, { fieldType, value: valueToFill });
-                break; // 找到一个就跳出，避免重复填充
+            // 从关键字数据源动态生成选择器并在所有根节点中查找
+            const keywordSet = keywordSets[fieldType as keyof KeywordSets];
+            if (keywordSet) {
+              // 为每个关键字生成 placeholder 选择器
+              keywordSet.forEach(keyword => {
+                // 跳过以 # 开头的关键字（这些已经在主匹配逻辑中处理过了）
+                if (!keyword.startsWith('#')) {
+                  const selector = `input[placeholder*="${keyword}"]`;
+                  const element = findElementInAllRoots(selector);
+                  if (element && element instanceof HTMLInputElement && !element.value) {
+                    element.value = valueToFill;
+                    element.dispatchEvent(new Event('input', { bubbles: true }));
+                    element.dispatchEvent(new Event('change', { bubbles: true }));
+                    additionalFields++;
+                    logger.info(`使用通用选择器填充字段: ${selector}`, { 
+                      fieldType, 
+                      value: valueToFill,
+                      inShadowDOM: isInShadowDOM(element)
+                    });
+                    return; // 找到一个就跳出，避免重复填充
+                  }
+                }
+              });
+              
+              // 添加 type 选择器（如果适用）
+              if (fieldType === 'email') {
+                const element = findElementInAllRoots('input[type="email"]');
+                if (element && element instanceof HTMLInputElement && !element.value) {
+                  element.value = valueToFill;
+                  element.dispatchEvent(new Event('input', { bubbles: true }));
+                  element.dispatchEvent(new Event('change', { bubbles: true }));
+                  additionalFields++;
+                  logger.info(`使用类型选择器填充字段: input[type="email"]`, { 
+                    fieldType, 
+                    value: valueToFill,
+                    inShadowDOM: isInShadowDOM(element)
+                  });
+                }
+              } else if (fieldType === 'url') {
+                const element = findElementInAllRoots('input[type="url"]');
+                if (element && element instanceof HTMLInputElement && !element.value) {
+                  element.value = valueToFill;
+                  element.dispatchEvent(new Event('input', { bubbles: true }));
+                  element.dispatchEvent(new Event('change', { bubbles: true }));
+                  additionalFields++;
+                  logger.info(`使用类型选择器填充字段: input[type="url"]`, { 
+                    fieldType, 
+                    value: valueToFill,
+                    inShadowDOM: isInShadowDOM(element)
+                  });
+                }
               }
             }
           }
@@ -209,6 +265,55 @@ function fillInputFields() {
   } catch (error) {
     logger.error('获取存储数据时出错', error);
   }
+}
+
+/**
+ * @description: 在所有根节点（包括 Shadow DOM）中查找元素
+ * @function findElementInAllRoots
+ * @param {string} selector CSS 选择器
+ * @returns {Element | null} 找到的第一个元素或 null
+ */
+function findElementInAllRoots(selector: string): Element | null {
+  // 递归查找函数
+  function searchInRoot(root: Document | ShadowRoot | Element): Element | null {
+    // 在当前根节点中查找
+    const element = root.querySelector(selector);
+    if (element) {
+      return element;
+    }
+    
+    // 在 Shadow DOM 中递归查找
+    const allElements = root.querySelectorAll('*');
+    for (const el of allElements) {
+      if (el.shadowRoot) {
+        const found = searchInRoot(el.shadowRoot);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  return searchInRoot(document);
+}
+
+/**
+ * @description: 检查元素是否在 Shadow DOM 中
+ * @function isInShadowDOM
+ * @param {Element} element 要检查的元素
+ * @returns {boolean} 如果元素在 Shadow DOM 中返回 true
+ */
+function isInShadowDOM(element: Element): boolean {
+  let parent = element.parentNode;
+  while (parent) {
+    if (parent instanceof ShadowRoot) {
+      return true;
+    }
+    parent = parent.parentNode;
+  }
+  return false;
 }
 
 /**
@@ -232,5 +337,42 @@ export default defineContentScript({
         fillInputFields();    // 填充输入框
       }
     });
+
+    // 监听 DOM 变化，以处理动态创建的 Shadow DOM
+    const observer = new MutationObserver((mutations) => {
+      let shouldRefill = false;
+      
+      mutations.forEach((mutation) => {
+        // 检查是否有新的节点被添加
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          mutation.addedNodes.forEach((node) => {
+            if (node instanceof Element) {
+              // 检查新添加的节点是否包含 Shadow DOM 或输入元素
+              if (node.shadowRoot || 
+                  node.querySelector('input, textarea') || 
+                  node.matches('input, textarea')) {
+                shouldRefill = true;
+              }
+            }
+          });
+        }
+      });
+      
+      if (shouldRefill) {
+        logger.info('检测到 DOM 变化，重新执行填充');
+        setTimeout(() => {
+          handleAutocomplete();
+          fillInputFields();
+        }, 100); // 延迟一点时间确保 DOM 完全更新
+      }
+    });
+
+    // 开始观察 DOM 变化
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    logger.info('EasyFill 内容脚本已启动，支持 Shadow DOM');
   }
 });
