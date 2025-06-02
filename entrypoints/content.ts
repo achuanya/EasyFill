@@ -72,16 +72,33 @@ function fillInputFields() {
         inputs.forEach((input) => {
           const typeAttr = (input.getAttribute("type") || "").toLowerCase();
           const nameAttr = (input.getAttribute("name") || "").toLowerCase();
-          const currentValue = input.value;
+          const idAttr = (input.getAttribute("id") || "").toLowerCase();
           let valueToSet = ""; // 初始化要设置的值
+          let matchedBy = "";  // 记录匹配方式：id, name 或 type
 
           // 根据关键字集合和属性匹配，确定要填充的值
-          if (keywordSets.url.has(nameAttr) || (typeAttr === "url" && url)) {
-            valueToSet = url || valueToSet;
-          } else if (keywordSets.email.has(nameAttr) || (typeAttr === "email" && email)) {
-            valueToSet = email || valueToSet;
-          } else if (keywordSets.name.has(nameAttr) && name) {
-            valueToSet = name || valueToSet;
+          // 检查URL字段
+          if (keywordSets.url.has(nameAttr) || keywordSets.url.has(`#${idAttr}`)) {
+            valueToSet = url;
+            matchedBy = keywordSets.url.has(`#${idAttr}`) ? "id" : "name";
+          } else if (typeAttr === "url" && url) {
+            valueToSet = url;
+            matchedBy = "type";
+          }
+          
+          // 检查Email字段
+          else if (keywordSets.email.has(nameAttr) || keywordSets.email.has(`#${idAttr}`)) {
+            valueToSet = email;
+            matchedBy = keywordSets.email.has(`#${idAttr}`) ? "id" : "name";
+          } else if (typeAttr === "email" && email) {
+            valueToSet = email;
+            matchedBy = "type";
+          }
+          
+          // 检查Name字段
+          else if ((keywordSets.name.has(nameAttr) || keywordSets.name.has(`#${idAttr}`)) && name) {
+            valueToSet = name;
+            matchedBy = keywordSets.name.has(`#${idAttr}`) ? "id" : "name";
           }
 
           // 过滤无关字段
@@ -89,22 +106,62 @@ function fillInputFields() {
 
           // 输出 JSON 格式日志
           const logEntry = {
-            name: nameAttr || typeAttr,
-            type: typeAttr,
-            currentValue,
+            name: nameAttr || "",
+            id: idAttr || "",
+            type: typeAttr || "",
+            matchedBy,
             valueToSet,
-            action: currentValue === valueToSet ? "SKIP" : "FILL",
           };
 
           // 执行填充操作
-          if (logEntry.action === "FILL") {
+          // if (logEntry.action === "FILL") {
             logger.info('填充表单字段', JSON.stringify(logEntry));
             (input as HTMLInputElement).value = valueToSet;
+            
+            // 触发 input 事件，通知表单值已更改
+            const inputEvent = new Event('input', { bubbles: true });
+            input.dispatchEvent(inputEvent);
+            
+            // 触发 change 事件
+            const changeEvent = new Event('change', { bubbles: true });
+            input.dispatchEvent(changeEvent);
+            
             fieldsFound++;
-          }
+          // }
         });
 
         logger.info(`表单填充完成，成功填充 ${fieldsFound} 个字段`);
+
+        // 在原本 fillInputFields 函数末尾，当 keywordSets 处理完后
+        let fieldsNotFound = {
+          name: !fieldsFound.includes('name'),
+          email: !fieldsFound.includes('email'),
+          url: !fieldsFound.includes('url')
+        };
+
+        // 如果有未找到的字段，使用直接选择器
+        if (Object.values(fieldsNotFound).some(Boolean)) {
+          logger.info('通过关键字匹配未能找到所有字段，尝试使用直接选择器');
+          let additionalFields = 0;
+          
+          // 对每种未找到的字段类型使用直接选择器
+          if (fieldsNotFound.name) {
+            for (const selector of keywordSets.name.selectors) {
+              const element = document.querySelector(selector);
+              if (element && element instanceof HTMLInputElement) {
+                element.value = name;
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+                element.dispatchEvent(new Event('change', { bubbles: true }));
+                additionalFields++;
+                break;
+              }
+            }
+          }
+          // 类似地处理 email 和 url
+          // ...
+          
+          logger.info(`使用直接选择器额外找到并填充了 ${additionalFields} 个字段`);
+        }
       } catch (error) {
         logger.error('解密或填充表单数据时出错', error);
       }

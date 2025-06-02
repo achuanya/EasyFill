@@ -184,7 +184,7 @@ const SettingsPage: React.FC = () => {
               label="留言"
               icon={<Chat />}
               component="a"
-              href="https://lhasa.icu/guestbook.html"
+              href="https://lhasa.icu"
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => {
