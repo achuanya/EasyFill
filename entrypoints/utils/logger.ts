@@ -3,13 +3,15 @@
  * --------------------------------------------------------------------------
  * @author       游钓四方 <haibao1027@gmail.com>
  * @created      2025-04-13
- * @lastModified 2025-04-13
+ * @lastModified 2025-09-16
  * --------------------------------------------------------------------------
  * @copyright    (c) 2025 游钓四方
  * @license      MPL-2.0
  * --------------------------------------------------------------------------
  * @module       logger
  */
+
+import { chromeStorageGet, chromeStorageSet, getLocalCacheData, setLocalCacheData } from './storageUtils';
 
 /**
  * @description: 日志级别枚举
@@ -155,20 +157,29 @@ export class Logger {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         // Chrome扩展环境
-        return new Promise<void>((resolve) => {
-          chrome.storage.local.get([LOGGER_STORAGE_KEY], (result) => {
-            if (!chrome.runtime.lastError && result[LOGGER_STORAGE_KEY] !== undefined) {
-              this.config.enabled = result[LOGGER_STORAGE_KEY];
-            }
-            resolve();
-          });
-        });
+        try {
+          const result = await chromeStorageGet([LOGGER_STORAGE_KEY]);
+          if (result[LOGGER_STORAGE_KEY] !== undefined) {
+            this.config.enabled = result[LOGGER_STORAGE_KEY];
+          }
+        } catch (error) {
+          console.warn('无法从 Chrome 存储加载日志配置，使用 localStorage');
+          // 如果 Chrome 存储失败，尝试从 localStorage 加载
+           const stored = getLocalCacheData({ key: LOGGER_STORAGE_KEY });
+           if (stored !== null) {
+             try {
+               this.config.enabled = stored;
+             } catch (e) {
+               console.warn('localStorage 中的日志配置格式错误，使用默认配置');
+             }
+           }
+        }
       } else {
         // 普通网页环境
-        const stored = localStorage.getItem(LOGGER_STORAGE_KEY);
-        if (stored !== null) {
-          this.config.enabled = JSON.parse(stored);
-        }
+         const stored = getLocalCacheData({ key: LOGGER_STORAGE_KEY });
+         if (stored !== null) {
+           this.config.enabled = stored;
+         }
       }
     } catch (error) {
       // 静默处理存储读取错误，保持默认状态
@@ -184,14 +195,16 @@ export class Logger {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         // Chrome扩展环境
-        return new Promise<void>((resolve) => {
-          chrome.storage.local.set({ [LOGGER_STORAGE_KEY]: this.config.enabled }, () => {
-            resolve();
-          });
-        });
+        try {
+          await chromeStorageSet({ [LOGGER_STORAGE_KEY]: this.config.enabled });
+        } catch (error) {
+          console.warn('无法保存到 Chrome 存储，使用 localStorage');
+           // 如果 Chrome 存储失败，保存到 localStorage
+           setLocalCacheData({ key: LOGGER_STORAGE_KEY }, this.config.enabled);
+        }
       } else {
         // 普通网页环境
-        localStorage.setItem(LOGGER_STORAGE_KEY, JSON.stringify(this.config.enabled));
+         setLocalCacheData({ key: LOGGER_STORAGE_KEY }, this.config.enabled);
       }
     } catch (error) {
       // 静默处理存储保存错误
@@ -296,10 +309,12 @@ export class Logger {
       // 生产环境：只显示警告和错误
       this.setLevel(LogLevel.WARN);
     } else {
-      // 开发环境：显示所有日志，并启用彩色和时间戳
+      // 开发环境：显示所有日志，启用彩色和时间戳，并自动启用日志输出
       this.setLevel(LogLevel.INFO)
           .useColors(true)
           .showTimestamp(true);
+      // 在开发环境下自动启用日志输出
+      this.config.enabled = true;
     }
     
     return this;

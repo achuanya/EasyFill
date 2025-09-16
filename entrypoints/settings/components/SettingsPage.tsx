@@ -3,7 +3,7 @@
  * --------------------------------------------------------------------------
  * @author       游钓四方 <haibao1027@gmail.com>
  * @created      2025-04-13
- * @lastModified 2025-04-13
+ * @lastModified 2025-09-16
  * --------------------------------------------------------------------------
  * @copyright    (c) 2025 游钓四方
  * @license      MPL-2.0
@@ -14,11 +14,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Box, Tabs, Tab, Typography } from '@mui/material';
-import { AccountBox, SyncAlt, Extension, ContactPage, Article, Policy, Chat } from '@mui/icons-material';
+import { AccountBox, SyncAlt, Extension, ContactPage, Article, Policy, Chat, Security } from '@mui/icons-material';
 import { marked } from 'marked';
 import GravatarAvatar from './GravatarAvatar';
 import UserSettingsPage from './UserSettingsPage';
-import SyncSettingsPage from './SyncSettings';
+
+import FillSettingsPage from './FillSettingsPage';
 import MarkdownRenderer from './MarkdownRenderer';
 import GlobalScrollbarStyles from './GlobalScrollbarStyles';
 import AdBanner from './AdBanner';
@@ -26,6 +27,7 @@ import WeChatOfficialAccount from './WeChatOfficialAccount';
 import GitHubCorner from './GitHubCorner';
 import { encryptData, decryptData } from '../../utils/cryptoUtils';
 import { logger } from '../../utils/logger';
+import { getLocalCacheData, setLocalCacheData, getEncryptedStorageData, setEncryptedStorageData } from '../../utils/storageUtils';
 
 // 设置页面组件
 // 该组件用于显示用户的设置选项，包括个人信息、推荐插件、关于作者、更新日志和隐私权政策等
@@ -47,28 +49,26 @@ const SettingsPage: React.FC = () => {
   useEffect(() => {
     const loadUserData = async () => {
       logger.info('开始加载用户数据');
-      chrome.storage.sync.get(['name', 'email', 'url'], async (data) => {
-        try {
-          const storedName = data.name ? await decryptData(data.name) : '';
-          const storedEmail = data.email ? await decryptData(data.email) : '';
-          const storedUrl = data.url ? await decryptData(data.url) : '';
+      try {
+        const storedName = await getEncryptedStorageData({ key: 'name', storageType: 'sync' }) || '';
+        const storedEmail = await getEncryptedStorageData({ key: 'email', storageType: 'sync' }) || '';
+         const storedUrl = await getEncryptedStorageData({ key: 'url', storageType: 'sync' }) || '';
           
-          setName(storedName);
-          setEmail(storedEmail);
-          setUrl(storedUrl);
+        setName(storedName);
+        setEmail(storedEmail);
+        setUrl(storedUrl);
 
-          if (storedName || storedEmail || storedUrl) {
-            setEditing(false);
-            logger.info('用户数据加载成功');
-          } else {
-            setEditing(true);
-            logger.info('未找到用户数据，进入编辑模式');
-          }
-        } catch (error) {
-          logger.error('解密用户数据时出错', error);
+        if (storedName || storedEmail || storedUrl) {
+          setEditing(false);
+          logger.info('用户数据加载成功');
+        } else {
           setEditing(true);
+          logger.info('未找到用户数据，进入编辑模式');
         }
-      });
+      } catch (error) {
+        logger.error('加载用户数据时出错', error);
+        setEditing(true);
+      }
     };
 
     loadUserData();
@@ -77,9 +77,8 @@ const SettingsPage: React.FC = () => {
   useEffect(() => {
     // 加载 Markdown 内容
     const fetchMarkdown = async (url: string) => {
-      try {
-        // 检查 localStorage 是否已有缓存
-        const cachedMarkdown = localStorage.getItem(url);
+      try {        // 检查缓存是否已有内容
+         const cachedMarkdown = getLocalCacheData({ key: url, maxAge: 24 * 60 * 60 * 1000 }); // 24小时缓存
         if (cachedMarkdown) {
           logger.info(`从缓存加载 Markdown 文件: ${url}`);
           return cachedMarkdown;
@@ -95,8 +94,8 @@ const SettingsPage: React.FC = () => {
         
         const markdown = await response.text();
 
-        // 将加载的内容存入 localStorage
-        localStorage.setItem(url, markdown);
+        // 将加载的内容存入缓存
+         setLocalCacheData({ key: url }, markdown);
         logger.info(`Markdown 文件已缓存: ${url}`);
 
         return marked(markdown);
@@ -142,19 +141,12 @@ const SettingsPage: React.FC = () => {
         return;
       }
       
-      const encryptedName = await encryptData(name);
-      const encryptedEmail = await encryptData(email);
-      const encryptedUrl = await encryptData(url);
-
-      chrome.storage.sync.set({ name: encryptedName, email: encryptedEmail, url: encryptedUrl }, () => {
-        if (chrome.runtime.lastError) {
-          logger.error('保存用户数据时出错', chrome.runtime.lastError);
-          return;
-        }
-        
-        setEditing(false);
-        logger.info('用户数据保存成功');
-      });
+      await setEncryptedStorageData({ key: 'name', storageType: 'sync' }, name);
+       await setEncryptedStorageData({ key: 'email', storageType: 'sync' }, email);
+       await setEncryptedStorageData({ key: 'url', storageType: 'sync' }, url);
+      
+      setEditing(false);
+      logger.info('用户数据保存成功');
     } catch (error) {
       logger.error('加密或保存用户数据时出错', error);
     }
@@ -175,7 +167,7 @@ const SettingsPage: React.FC = () => {
           <GravatarAvatar name={name} email={email} />
           <Tabs value={selectedTab} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tab label="我的信息" icon={<AccountBox />} />
-            <Tab label="同步设置" icon={<SyncAlt />} />
+            <Tab label="填充设置" icon={<Security />} />
             <Tab label="推荐插件" icon={<Extension />} />
             <Tab label="关于作者" icon={<ContactPage />} />
             <Tab label="更新日志" icon={<Article />} />
@@ -207,8 +199,8 @@ const SettingsPage: React.FC = () => {
             />
           )}
 
-          {/* 同步设置 */}
-          {selectedTab === 1 && <SyncSettingsPage />}
+          {/* 填充设置 */}
+          {selectedTab === 1 && <FillSettingsPage />}
 
           {/* 推荐插件 */}
           {selectedTab === 2 && <MarkdownRenderer content={recommendedPluginsContent} />}

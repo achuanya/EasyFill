@@ -1,0 +1,133 @@
+# 黑名单域名列表
+# 每行一个域名，支持通配符匹配（如 *.example.com）
+
+# 社交媒体平台
+facebook.com
+*.facebook.com
+twitter.com
+*.twitter.com
+instagram.com
+*.instagram.com
+linkedin.com
+*.linkedin.com
+weibo.com
+*.weibo.com
+zhihu.com
+*.zhihu.com
+tieba.baidu.com
+wechat.com
+*.wechat.co.com
+tencent.com
+*.tencent.com
+douyin.com
+*.douyin.com
+tiktok.com
+*.tiktok.com
+
+# 电商平台
+taobao.com
+*.taobao.com
+tmall.com
+*.tmall.com
+jd.com
+*.jd.com
+amazon.com
+*.amazon.com
+ebay.com
+*.ebay.com
+pinduoduo.com
+*.pinduoduo.com
+
+# 搜索引擎
+baidu.com
+*.baidu.com
+google.com
+*.google.com
+bing.com
+*.bing.com
+yahoo.com
+*.yahoo.com
+sogou.com
+*.sogou.com
+
+# 新闻门户
+sina.com.cn
+*.sina.com.cn
+sohu.com
+*.sohu.com
+163.com
+*.163.com
+qq.com
+*.qq.com
+ifeng.com
+*.ifeng.com
+people.com.cn
+*.people.com.cn
+xinhuanet.com
+*.xinhuanet.com
+
+# 论坛社区
+reddit.com
+*.reddit.com
+v2ex.com
+*.v2ex.com
+stackoverflow.com
+*.stackoverflow.com
+
+# 云服务平台
+aliyun.com
+*.aliyun.com
+tencent-cloud.com
+*.tencent-cloud.com
+aws.amazon.com
+*.aws.amazon.com
+azure.microsoft.com
+*.azure.microsoft.com
+
+# 游戏平台
+steam.com
+*.steam.comm
+
+# 视频平台
+youtube.com
+*.youtube.com
+bilibili.com
+*.bilibili.com
+iqiyi.com
+*.iqiyi.com
+youku.com
+*.youku
+epic.com
+*.epic.com
+riot.com
+*.riot.com
+blizzard.com
+*.blizzard.com
+
+# 金融平台
+alipay.com
+*.alipay.com
+paypal.com
+*.paypal.com
+bank.com
+*.bank.com
+
+# 企业服务
+dingtalk.com
+*.dingtalk.com
+slack.com
+*.slack.com
+microsoft.com
+*.microsoft.com
+
+# 其他大型平台
+dropbox.com
+*.dropbox.com
+netflix.com
+*.netflix.com
+spotify.com
+*.spotify.com
+airbnb.com
+*.airbnb.com
+uber.com
+*.uber.com

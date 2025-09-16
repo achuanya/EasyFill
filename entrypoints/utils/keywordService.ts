@@ -3,7 +3,7 @@
  * --------------------------------------------------------------------------
  * @author       游钓四方 <haibao1027@gmail.com>
  * @created      2025-04-13
- * @lastModified 2025-04-13
+ * @lastModified 2025-09-16
  * --------------------------------------------------------------------------
  * @copyright    (c) 2025 游钓四方
  * @license      MPL-2.0
@@ -12,6 +12,12 @@
  */
 
 import { logger } from './logger';
+import {
+  getCacheData,
+  setCacheData,
+  CacheConfig
+} from './storageUtils';
+import { sendRuntimeMessage } from './storageUtils';
 
 // 关键字集合的类型定义
 export interface KeywordSets {
@@ -24,6 +30,13 @@ export interface KeywordSets {
 // 缓存配置
 const CACHE_KEY = 'easyfill_keywords_cache';
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 小时
+
+// 关键字缓存配置
+const KEYWORDS_CACHE_CONFIG: CacheConfig = {
+  key: CACHE_KEY,
+  ttl: CACHE_TTL,
+  validator: (data: any) => data && typeof data === 'object' && data.name && data.email && data.url
+};
 
 // 默认的关键字集合（备用）
 let defaultKeywordSets: KeywordSets | null = null;
@@ -60,23 +73,14 @@ async function loadDefaultKeywordSets(): Promise<KeywordSets> {
     logger.info('尝试加载本地关键字文件');
 
     // 通过后台脚本获取本地关键字
-    const jsonData = await new Promise<Record<string, string[]>>((resolve, reject) => {
-      chrome.runtime.sendMessage(
-        { action: 'fetchLocalKeywords' },
-        response => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message || '与后台脚本通信失败'));
-            return;
-          }
-
-          if (response && response.success && response.data) {
-            resolve(response.data);
-          } else {
-            reject(new Error(response?.error || '获取本地关键字失败'));
-          }
+    const jsonData = await sendRuntimeMessage({ action: 'fetchLocalKeywords' })
+      .then(response => {
+        if (response && response.success && response.data) {
+          return response.data;
+        } else {
+          throw new Error(response?.error || '获取本地关键字失败');
         }
-      );
-    });
+      });
 
     logger.info('已加载本地关键字文件');
     return convertJsonToKeywordSets(jsonData);
@@ -98,46 +102,11 @@ async function loadDefaultKeywordSets(): Promise<KeywordSets> {
  */
 export async function getKeywordSetsFromCache(): Promise<Record<string, string[]> | null> {
   try {
-    return new Promise<Record<string, string[]> | null>((resolve) => {
-      chrome.storage.local.get([CACHE_KEY], (result) => {
-        if (chrome.runtime.lastError) {
-          logger.error('读取关键字缓存时发生错误', chrome.runtime.lastError);
-          resolve(null);
-          return;
-        }
-
-        if (result && result[CACHE_KEY]) {
-          const { data, timestamp } = result[CACHE_KEY];
-          const now = Date.now();
-
-          // 检查缓存是否过期
-          if (now - timestamp < CACHE_TTL) {
-            logger.info('从缓存加载关键字集合', {
-              source: 'cache',
-              cacheAge: Math.floor((now - timestamp) / 1000) + '秒',
-              validFor: Math.floor((CACHE_TTL - (now - timestamp)) / 1000) + '秒'
-            });
-            // 确保 data 存在且是对象
-            if (data && typeof data === 'object') {
-              // 直接返回原始数据，不再调用 convertJsonToKeywordSets
-              resolve(data);
-            } else {
-              logger.warn('缓存数据格式无效，视为无缓存', { cachedData: data });
-              resolve(null);
-            }
-          } else {
-            logger.info('缓存已过期', {
-              age: Math.floor((now - timestamp) / 1000) + '秒',
-              ttl: Math.floor(CACHE_TTL / 1000) + '秒'
-            });
-            resolve(null);
-          }
-        } else {
-          logger.info('未找到关键字缓存');
-          resolve(null);
-        }
-      });
-    });
+    const cachedData = await getCacheData<Record<string, string[]>>(KEYWORDS_CACHE_CONFIG);
+    if (cachedData) {
+      logger.info('从缓存加载关键字集合');
+    }
+    return cachedData;
   } catch (error) {
     logger.error('读取关键字缓存失败', error);
     return null;
@@ -152,31 +121,11 @@ export async function getKeywordSetsFromCache(): Promise<Record<string, string[]
  */
 export async function saveKeywordSetsToCache(data: Record<string, string[]>): Promise<void> {
   try {
-    // 基本的数据验证
-    if (!data || typeof data !== 'object' || !data.name || !data.email || !data.url) {
-       logger.error('尝试缓存无效的关键字数据', { data });
-       throw new Error('无效的关键字数据格式，无法缓存');
-    }
-
-    const cacheData = {
-      data,
-      timestamp: Date.now()
-    };
-
-    return new Promise<void>((resolve, reject) => { // 添加 reject
-      chrome.storage.local.set({ [CACHE_KEY]: cacheData }, () => {
-        if (chrome.runtime.lastError) {
-          logger.error('缓存关键字集合失败', chrome.runtime.lastError);
-          reject(new Error(chrome.runtime.lastError.message)); // 抛出错误
-        } else {
-          logger.info('关键字集合已缓存'); // 移除 cacheData 避免日志过大
-          resolve();
-        }
-      });
-    });
+    await setCacheData(KEYWORDS_CACHE_CONFIG, data);
+    logger.info('关键字集合已缓存');
   } catch (error) {
     logger.error('缓存关键字集合时发生异常', error);
-    throw error; // 重新抛出错误
+    throw error;
   }
 }
 
@@ -186,25 +135,23 @@ export async function saveKeywordSetsToCache(data: Record<string, string[]>): Pr
  * @returns {Promise<KeywordSets | null>} 返回关键字集合或null
  */
 async function triggerBackgroundSyncAndFetch(): Promise<KeywordSets | null> {
-  return new Promise((resolve, reject) => {
+  try {
     // 请求后台执行同步（如果需要）并返回最新数据
-    chrome.runtime.sendMessage({ action: 'getOrSyncKeywords' }, response => {
-      if (chrome.runtime.lastError) {
-        logger.error('请求后台同步关键字失败', chrome.runtime.lastError);
-        reject(new Error(chrome.runtime.lastError.message || '与后台脚本通信失败'));
-        return;
-      }
-
-      if (response && response.success && response.data) {
-        logger.info('后台同步/获取关键字成功');
-        resolve(convertJsonToKeywordSets(response.data));
-      } else {
-        logger.warn('后台同步/获取关键字失败或无数据返回', { error: response?.error });
-        // 即使同步失败，也尝试返回 null，让 getKeywordSets 继续尝试本地数据
-        resolve(null);
-      }
-    });
-  });
+    const response = await sendRuntimeMessage({ action: 'getOrSyncKeywords' });
+    
+    if (response && response.success && response.data) {
+      logger.info('后台同步/获取关键字成功');
+      return convertJsonToKeywordSets(response.data);
+    } else {
+      logger.warn('后台同步/获取关键字失败或无数据返回', { error: response?.error });
+      // 即使同步失败，也尝试返回 null，让 getKeywordSets 继续尝试本地数据
+      return null;
+    }
+  } catch (error) {
+    logger.error('请求后台同步关键字失败', error);
+    // 即使同步失败，也尝试返回 null，让 getKeywordSets 继续尝试本地数据
+    return null;
+  }
 }
 
 /**

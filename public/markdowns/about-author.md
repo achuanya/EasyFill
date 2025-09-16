@@ -4,7 +4,7 @@
 
 ## 关于我
 
-千禧年小孩，长途骑行小学生、野钓路亚、振出并继、古典乐、茶叶爱好者
+千禧年小孩、长途骑行小学生、野钓路亚、振出并继、古典乐爱好者、野生程序员、独立开发者
 
 <img src="/images/my-photo.jpg" title="我的骑行照" />
 
@@ -19,5 +19,4 @@ Email：haibao1027@gmail.com
 ## 订阅
 
 如果您喜欢我的内容，可以通过以下方式订阅我的博客：  
-- Atom：[https://lhasa.icu/atom.xml](https://lhasa.icu/atom.xml) 
 - RSS：[https://lhasa.icu/rss.xml](https://lhasa.icu/rss.xml)

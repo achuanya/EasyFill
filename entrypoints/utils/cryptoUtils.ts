@@ -3,7 +3,7 @@
  * --------------------------------------------------------------------------
  * @author       游钓四方 <haibao1027@gmail.com>
  * @created      2025-04-13
- * @lastModified 2025-04-13
+ * @lastModified 2025-09-16
  * --------------------------------------------------------------------------
  * @copyright    (c) 2025 游钓四方
  * @license      MPL-2.0
@@ -102,4 +102,79 @@ export async function decryptData(encryptedData: string): Promise<string> {
     logger.error('解密数据时出错', error);
     throw error;
   }
+}
+
+/**
+ * @description: 检查一个给定的元素是否是密码字段。
+ * 这不仅仅检查 type='password'，还检查 autocomplete 属性以处理“显示密码”等情况。
+ * @param element 需要检查的元素
+ * @returns {boolean}
+ */
+export function isPasswordElement(element: Element | null): boolean {
+  if (!element || typeof (element as any).getAttribute !== 'function') {
+    return false;
+  }
+
+  if (element.tagName !== 'INPUT') {
+    return false;
+  }
+
+  const inputElement = element as HTMLInputElement;
+
+  // 直接检查 type 属性
+  if (inputElement.type.toLowerCase() === 'password') {
+    return true;
+  }
+
+  // 检查 autocomplete 属性，识别处于“显示密码”时的输入框
+  const autocomplete = (inputElement.getAttribute('autocomplete') || '').toLowerCase();
+  if (autocomplete === 'current-password' || autocomplete === 'new-password') {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * @description: 递归地检查当前焦点元素是否为密码输入框，支持 Shadow DOM 和 iframes。
+ * @returns {boolean} 如果当前焦点元素是密码输入框则返回 true
+ */
+export function isPasswordFieldFocused(): boolean {
+  let activeElement: Element | null = document.activeElement;
+  
+  // 使用一个 Set 来防止无限循环（例如，两个 iframe 互相引用）
+  const visited = new Set<Element | Document>();
+
+  while (activeElement && !visited.has(activeElement)) {
+    visited.add(activeElement);
+
+    if (isPasswordElement(activeElement)) {
+      return true;
+    }
+
+    // Shadow DOM 中的焦点
+    if ((activeElement as any).shadowRoot && (activeElement as any).shadowRoot.activeElement) {
+      activeElement = (activeElement as any).shadowRoot.activeElement as Element;
+      continue;
+    }
+
+    // iframe 中的焦点
+    if (activeElement.tagName === 'IFRAME') {
+      const iframe = activeElement as HTMLIFrameElement;
+      try {
+        if (iframe.contentDocument) {
+          visited.add(iframe.contentDocument);
+          activeElement = iframe.contentDocument.activeElement;
+          continue;
+        }
+      } catch (e) {
+        // 跨域 iframe 无法访问
+        console.warn('Cannot access cross-origin iframe:', iframe);
+        return false;
+      }
+    }
+    break;
+  }
+  
+  return isPasswordElement(activeElement);
 }

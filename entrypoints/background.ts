@@ -3,7 +3,7 @@
  * --------------------------------------------------------------------------
  * @author       游钓四方 <haibao1027@gmail.com>
  * @created      2025-03-24
- * @lastModified 2025-04-14 // 更新日期
+ * @lastModified 2025-09-16
  * --------------------------------------------------------------------------
  * @copyright    (c) 2025 游钓四方
  * @license      MPL-2.0
@@ -13,6 +13,17 @@
 
 import { logger } from './utils/logger';
 import { saveKeywordSetsToCache, getKeywordSetsFromCache } from './utils/keywordService';
+import {
+  getBlacklistStatus,
+  updateBlacklistSettings,
+  syncOfficialBlacklist,
+  checkDomainInBlacklist,
+  type BlacklistStatus
+} from './utils/blacklistService';
+import { chromeStorageGet, chromeStorageSet, chromeStorageRemove } from './utils/storageUtils';
+
+// 配置日志系统根据环境自动启用
+logger.configureByEnvironment();
 
 // 保存定时器ID，用于清理
 let syncIntervalId: number | null = null;
@@ -31,8 +42,11 @@ const STORAGE_KEYS = {
   KEYWORDS_URL: 'easyfill_keywords_url',
   KEYWORDS_ETAG: 'easyfill_keywords_etag',
   KEYWORDS_LAST_MODIFIED: 'easyfill_keywords_last_modified',
-  SYNC_NETWORK_TYPE: 'easyfill_sync_network_type'
+  SYNC_NETWORK_TYPE: 'easyfill_sync_network_type',
+
 };
+
+
 
 interface SyncStatus {
   lastSync: number;
@@ -42,6 +56,8 @@ interface SyncStatus {
   networkType: 'any' | 'wifi_only';
   keywordsUrl: string;
 }
+
+
 
 export default defineBackground(() => {
   chrome.runtime.onInstalled.addListener(async (details) => {
@@ -61,6 +77,15 @@ export default defineBackground(() => {
       logger.info(`执行 ${reason} 后的强制同步`);
       // 强制同步以获取最新数据
       await syncKeywordsData(true); // 等待强制同步完成
+      
+      // 同步官方黑名单数据
+      try {
+        await syncOfficialBlacklist();
+        logger.info(`${reason} 官方黑名单同步完成`);
+      } catch (error: any) {
+        logger.error(`${reason} 官方黑名单同步失败`, error);
+      }
+      
       logger.info(`${reason} 强制同步完成`);
     }
 
@@ -205,6 +230,50 @@ export default defineBackground(() => {
       return true;
     }
 
+    // 获取黑名单状态
+    if (request.action === 'getBlacklistStatus') {
+      getBlacklistStatus()
+        .then(status => sendResponse({ success: true, data: status }))
+        .catch(error => sendResponse({
+          success: false,
+          error: error.message || '获取黑名单状态失败'
+        }));
+      return true;
+    }
+
+    // 更新黑名单设置
+    if (request.action === 'updateBlacklistSettings') {
+      updateBlacklistSettings(request.settings)
+        .then(() => sendResponse({ success: true }))
+        .catch(error => sendResponse({
+          success: false,
+          error: error.message || '更新黑名单设置失败'
+        }));
+      return true;
+    }
+
+    // 同步官方黑名单
+    if (request.action === 'syncOfficialBlacklist') {
+      syncOfficialBlacklist(true) // 强制同步
+        .then(result => sendResponse({ success: true, data: result }))
+        .catch(error => sendResponse({
+          success: false,
+          error: error.message || '同步官方黑名单失败'
+        }));
+      return true;
+    }
+
+    // 检查域名是否在黑名单中
+    if (request.action === 'checkDomainInBlacklist') {
+      checkDomainInBlacklist(request.domain)
+        .then(result => sendResponse({ success: true, data: result }))
+        .catch(error => sendResponse({
+          success: false,
+          error: error.message || '检查域名黑名单状态失败'
+        }));
+      return true;
+    }
+
     logger.warn('收到未知的消息 action', { request });
   });
 });
@@ -234,8 +303,17 @@ async function initializeKeywordSync(): Promise<void> {
           syncIntervalMins: Math.round(syncInterval / 60000),
           now: new Date(now).toISOString()
         });
-        // 使用 await 确保同步操作完成（如果需要后续逻辑依赖它），但通常后台启动时不需要阻塞
-        await syncKeywordsData(false); // 非强制同步
+        
+        try {
+          // 同步关键字数据（强制同步，强制下载远程数据）
+          await syncKeywordsData(true);
+          
+          // 同步官方黑名单（强制同步，强制下载远程数据）
+          await syncOfficialBlacklist(true);
+          logger.info('initializeKeywordSync 缓存过期同步完成（关键字数据 + 官方黑名单）');
+        } catch (error: any) {
+          logger.error('initializeKeywordSync 缓存过期同步失败', error);
+        }
       } else if (lastSync) {
         // lastSync 存在但未过期
         logger.info('initializeKeywordSync 检测到缓存数据仍然有效', {
@@ -286,9 +364,21 @@ function setupSyncInterval(interval: number): void {
   }
 
   // 设置新的定时器
-  syncIntervalId = setInterval(() => {
-    logger.info('定时器触发，执行非强制同步');
-    syncKeywordsData(false); // 定时器总是执行非强制同步
+  syncIntervalId = setInterval(async () => {
+    logger.info('定时器触发，执行自动同步（关键字数据 + 官方黑名单）');
+    
+    try {
+      // 同步关键字数据（强制同步，强制下载远程数据）
+      const keywordResult = await syncKeywordsData(true);
+      logger.info('定时器关键字同步结果', { success: keywordResult.success, message: keywordResult.message });
+      
+      // 同步官方黑名单（强制同步，强制下载远程数据）
+      const blacklistResult = await syncOfficialBlacklist(true);
+      logger.info('定时器黑名单同步结果', { blacklistCount: blacklistResult.blacklist.length });
+      
+    } catch (error: any) {
+      logger.error('定时器自动同步过程中发生错误', error);
+    }
   }, effectiveInterval) as unknown as number;
 
   logger.info('已设置新的关键字自动同步间隔', {
@@ -359,24 +449,22 @@ async function getSyncSettingsFromStorage(): Promise<{
   syncInterval: number,
   networkType: 'any' | 'wifi_only'
 }> {
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.get([
+  try {
+    const result = await chromeStorageGet([
       STORAGE_KEYS.SYNC_ENABLED,
       STORAGE_KEYS.SYNC_INTERVAL,
       STORAGE_KEYS.SYNC_NETWORK_TYPE
-    ], (result) => {
-      if (chrome.runtime.lastError) {
-        logger.error('获取同步设置失败', chrome.runtime.lastError);
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        resolve({
-          syncEnabled: result[STORAGE_KEYS.SYNC_ENABLED] !== false,
-          syncInterval: result[STORAGE_KEYS.SYNC_INTERVAL] || DEFAULT_SYNC_INTERVAL,
-          networkType: result[STORAGE_KEYS.SYNC_NETWORK_TYPE] || 'any'
-        });
-      }
-    });
-  });
+    ]);
+    
+    return {
+      syncEnabled: result[STORAGE_KEYS.SYNC_ENABLED] !== false,
+      syncInterval: result[STORAGE_KEYS.SYNC_INTERVAL] || DEFAULT_SYNC_INTERVAL,
+      networkType: result[STORAGE_KEYS.SYNC_NETWORK_TYPE] || 'any'
+    };
+  } catch (error) {
+    logger.error('获取同步设置失败', error);
+    throw error;
+  }
 }
 
 /**
@@ -385,16 +473,13 @@ async function getSyncSettingsFromStorage(): Promise<{
  * @returns {Promise<number | null>}
  */
 async function getLastSyncTime(): Promise<number | null> {
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.get([STORAGE_KEYS.LAST_SYNC], (result) => {
-      if (chrome.runtime.lastError) {
-        logger.error('获取上次同步时间失败', chrome.runtime.lastError);
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        resolve(result[STORAGE_KEYS.LAST_SYNC] || null);
-      }
-    });
-  });
+  try {
+    const result = await chromeStorageGet([STORAGE_KEYS.LAST_SYNC]);
+    return result[STORAGE_KEYS.LAST_SYNC] || null;
+  } catch (error) {
+    logger.error('获取上次同步时间失败', error);
+    throw error;
+  }
 }
 
 /**
@@ -404,19 +489,15 @@ async function getLastSyncTime(): Promise<number | null> {
  */
 async function updateLastSyncTime(): Promise<void> {
   const now = Date.now();
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.set({
+  try {
+    await chromeStorageSet({
       [STORAGE_KEYS.LAST_SYNC]: now
-    }, () => {
-      if (chrome.runtime.lastError) {
-        logger.error('更新上次同步时间失败', chrome.runtime.lastError);
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        logger.info('上次同步时间已更新', { timestamp: new Date(now).toISOString() });
-        resolve();
-      }
     });
-  });
+    logger.info('上次同步时间已更新', { timestamp: new Date(now).toISOString() });
+  } catch (error) {
+    logger.error('更新上次同步时间失败', error);
+    throw error;
+  }
 }
 
 /**
@@ -430,17 +511,8 @@ async function getSyncStatus(): Promise<SyncStatus> {
     const lastSync = await getLastSyncTime();
     let keywordsUrl = '';
 
-    await new Promise<void>((resolve, reject) => {
-      chrome.storage.local.get([STORAGE_KEYS.KEYWORDS_URL], (result) => {
-        if (chrome.runtime.lastError) {
-          logger.error('获取关键字 URL 失败', chrome.runtime.lastError);
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
-          keywordsUrl = result[STORAGE_KEYS.KEYWORDS_URL] || 'https://cos.lhasa.icu/EasyFill/keywords.json';
-          resolve();
-        }
-      });
-    });
+    const result = await chromeStorageGet([STORAGE_KEYS.KEYWORDS_URL]);
+    keywordsUrl = result[STORAGE_KEYS.KEYWORDS_URL] || 'https://lhasa-1253887673.cos.ap-shanghai.myqcloud.com/EasyFill/keywords.json';
 
     return {
       lastSync: lastSync || 0,
@@ -504,16 +576,12 @@ async function updateSyncSettings(settings: Partial<SyncStatus>): Promise<void> 
   }
 
   // 保存更新到存储
-  await new Promise<void>((resolve, reject) => {
-    chrome.storage.local.set(updates, () => {
-      if (chrome.runtime.lastError) {
-        logger.error('存储同步设置更新失败', chrome.runtime.lastError);
-        reject(new Error(chrome.runtime.lastError.message || '存储设置失败')); // 提供更明确的错误信息
-      } else {
-        resolve();
-      }
-    });
-  });
+  try {
+    await chromeStorageSet(updates);
+  } catch (error) {
+    logger.error('存储同步设置更新失败', error);
+    throw new Error('存储设置失败');
+  }
 
   logger.info('同步设置已成功存储', { updates });
 }
@@ -533,30 +601,19 @@ async function syncKeywordsData(forceSync: boolean = false): Promise<{success: b
     }
 
     // 获取最新的设置，特别是 keywordsUrl
-    const settings = await new Promise<{
-        networkType: 'any' | 'wifi_only',
-        keywordsUrl: string,
-        syncEnabled: boolean, // 也获取 syncEnabled
-        syncInterval: number // 也获取 syncInterval
-    }>((resolve, reject) => {
-        chrome.storage.local.get([
-            STORAGE_KEYS.SYNC_NETWORK_TYPE,
-            STORAGE_KEYS.KEYWORDS_URL,
-            STORAGE_KEYS.SYNC_ENABLED, // 读取 syncEnabled
-            STORAGE_KEYS.SYNC_INTERVAL // 读取 syncInterval
-        ], (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else {
-                resolve({
-                    networkType: result[STORAGE_KEYS.SYNC_NETWORK_TYPE] || 'any',
-                    keywordsUrl: result[STORAGE_KEYS.KEYWORDS_URL] || 'https://cos.lhasa.icu/EasyFill/keywords.json',
-                    syncEnabled: result[STORAGE_KEYS.SYNC_ENABLED] !== false, // 默认启用
-                    syncInterval: result[STORAGE_KEYS.SYNC_INTERVAL] || DEFAULT_SYNC_INTERVAL // 默认间隔
-                });
-            }
-        });
-    });
+    const result = await chromeStorageGet([
+        STORAGE_KEYS.SYNC_NETWORK_TYPE,
+        STORAGE_KEYS.KEYWORDS_URL,
+        STORAGE_KEYS.SYNC_ENABLED, // 读取 syncEnabled
+        STORAGE_KEYS.SYNC_INTERVAL // 读取 syncInterval
+    ]);
+    
+    const settings = {
+        networkType: result[STORAGE_KEYS.SYNC_NETWORK_TYPE] || 'any',
+        keywordsUrl: result[STORAGE_KEYS.KEYWORDS_URL] || 'https://lhasa-1253887673.cos.ap-shanghai.myqcloud.com/EasyFill/keywords.json',
+        syncEnabled: result[STORAGE_KEYS.SYNC_ENABLED] !== false, // 默认启用
+        syncInterval: result[STORAGE_KEYS.SYNC_INTERVAL] || DEFAULT_SYNC_INTERVAL // 默认间隔
+    };
 
 
     // 如果同步被禁用，则不执行（除非是强制同步，例如来自 onInstalled 或手动触发）
@@ -590,19 +647,10 @@ async function syncKeywordsData(forceSync: boolean = false): Promise<{success: b
     // 获取 ETag 和 Last-Modified (仅在非强制同步时使用)
     if (!forceSync) {
       try {
-        // 使用 Promise 包装 chrome.storage.local.get
-        const result = await new Promise<{[key: string]: any}>((resolve, reject) => {
-            chrome.storage.local.get([
-                STORAGE_KEYS.KEYWORDS_ETAG,
-                STORAGE_KEYS.KEYWORDS_LAST_MODIFIED
-            ], (items) => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                } else {
-                    resolve(items);
-                }
-            });
-        });
+        const result = await chromeStorageGet([
+            STORAGE_KEYS.KEYWORDS_ETAG,
+            STORAGE_KEYS.KEYWORDS_LAST_MODIFIED
+        ]);
         etag = result[STORAGE_KEYS.KEYWORDS_ETAG] || '';
         lastModified = result[STORAGE_KEYS.KEYWORDS_LAST_MODIFIED] || '';
       } catch (storageError: any) { // 显式类型化 error
@@ -665,12 +713,7 @@ async function syncKeywordsData(forceSync: boolean = false): Promise<{success: b
              logger.warn('资源未找到 (404)，可能需要检查 URL 或清除旧的 ETag/LastModified');
              // 可选：清除 ETag/LastModified 避免后续无效的条件请求
              try {
-                await new Promise<void>((resolve, reject) => {
-                    chrome.storage.local.remove([STORAGE_KEYS.KEYWORDS_ETAG, STORAGE_KEYS.KEYWORDS_LAST_MODIFIED], () => {
-                        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
-                        else resolve();
-                    });
-                });
+                await chromeStorageRemove([STORAGE_KEYS.KEYWORDS_ETAG, STORAGE_KEYS.KEYWORDS_LAST_MODIFIED]);
                 logger.info('已清除旧的 ETag/Last-Modified 由于 404 错误');
              } catch (removeError: any) {
                  logger.warn('清除 ETag/Last-Modified 失败', removeError.message);
@@ -692,13 +735,7 @@ async function syncKeywordsData(forceSync: boolean = false): Promise<{success: b
 
       if (Object.keys(headerUpdates).length > 0) {
         try {
-          // 使用 Promise 包装 set 操作
-          await new Promise<void>((resolve, reject) => {
-            chrome.storage.local.set(headerUpdates, () => {
-              if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
-              else resolve();
-            });
-          });
+          await chromeStorageSet(headerUpdates);
           logger.info('已更新 ETag/Last-Modified 头信息', headerUpdates);
         } catch (storageError: any) {
           logger.warn('保存 ETag/Last-Modified 头信息失败', storageError.message);
@@ -753,46 +790,6 @@ async function syncKeywordsData(forceSync: boolean = false): Promise<{success: b
     // 顶层 catch 处理所有未被内部捕获的错误
     logger.error('同步关键字数据过程中发生未捕获错误', { errorMessage: error.message, errorName: error.name, stack: error.stack });
     return { success: false, message: error.message || '同步失败，请稍后重试' };
-  }
-}
-
-/**
- * @description 获取远程关键字数据
- * @function fetchRemoteKeywords
- * @param {string} url 关键字数据URL
- * @returns {Promise<Record<string, string[]>>} 关键字数据对象
- */
-async function fetchRemoteKeywords(url: string): Promise<Record<string, string[]>> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      cache: 'no-cache',
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      logger.error(`后台 fetchRemoteKeywords HTTP 错误: ${response.status}`, { url });
-      throw new Error(`HTTP 错误: ${response.status}`);
-    }
-
-    const jsonData = await response.json();
-    if (!jsonData || typeof jsonData !== 'object' || !Array.isArray(jsonData.name)) {
-      throw new Error('无效的 JSON 数据格式');
-    }
-    return jsonData;
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    logger.error('后台脚本 fetchRemoteKeywords 失败', { error: error.message, url });
-    if (error.name === 'AbortError') {
-      throw new Error('获取远程关键字超时');
-    }
-    throw new Error(`获取远程关键字失败: ${error.message}`);
   }
 }
 

@@ -1,3 +1,16 @@
+/**
+ * @description  填充设置
+ * --------------------------------------------------------------------------
+ * @author       游钓四方 <haibao1027@gmail.com>
+ * @created      2025-09-16
+ * @lastModified 2025-09-16
+ * --------------------------------------------------------------------------
+ * @copyright    (c) 2025 游钓四方
+ * @license      MPL-2.0
+ * --------------------------------------------------------------------------
+ * @module       SyncSettings
+ */
+
 import React, { useState, useEffect } from 'react';
 import { 
   Box, Typography, Switch, FormControl, FormControlLabel, 
@@ -8,6 +21,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import SettingsBackupRestoreIcon from '@mui/icons-material/SettingsBackupRestore';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { logger } from '../../utils/logger';
+import { sendRuntimeMessage } from '../../utils/storageUtils';
 
 interface SyncStatus {
   lastSync: number;
@@ -39,7 +53,7 @@ const SyncSettings: React.FC = () => {
   const loadSyncStatus = async () => {
     setLoading(true);
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'getSyncStatus' });
+      const response = await sendRuntimeMessage({ action: 'getSyncStatus' });
       if (response.success) {
         setSyncStatus(response.data);
         setCustomUrl(response.data.keywordsUrl);
@@ -64,7 +78,7 @@ const SyncSettings: React.FC = () => {
   // 更新同步设置
   const updateSyncSettings = async (updates: Partial<SyncStatus>) => {
     try {
-      const response = await chrome.runtime.sendMessage({ 
+      const response = await sendRuntimeMessage({ 
         action: 'updateSyncSettings',
         settings: updates
       });
@@ -87,7 +101,7 @@ const SyncSettings: React.FC = () => {
     setSyncing(true);
     
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'syncKeywordsNow' });
+      const response = await sendRuntimeMessage({ action: 'syncKeywordsNow' });
       if (response.success) {
         // 只更新最后同步时间，而不是重新加载整个状态
         if (syncStatus) {
@@ -112,7 +126,7 @@ const SyncSettings: React.FC = () => {
 
   // 重置为默认URL
   const resetToDefaultUrl = () => {
-    const defaultUrl = 'https://cos.lhasa.icu/EasyFill/keywords.json';
+    const defaultUrl = 'https://lhasa-1253887673.cos.ap-shanghai.myqcloud.com/EasyFill/keywords.json';
     setCustomUrl(defaultUrl);
     updateSyncSettings({ keywordsUrl: defaultUrl });
   };
